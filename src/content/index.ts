@@ -1,17 +1,4 @@
-// export default window.onload = () => {
-//   const element = document.createElement('div');
-//   element.textContent = 'Hello from content script!';
-//   element.style.position = 'fixed';
-//   element.style.bottom = '10px';
-//   element.style.right = '10px';
-//   element.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-//   element.style.color = 'white';
-//   element.style.padding = '5px 10px';
-//   element.style.borderRadius = '5px';
-//   element.style.zIndex = '10000';
-
-//   document.body.appendChild(element);
-// }
+import { sendMessage } from "../lib/utils/chrome/message";
 
 function injectScript() {
   try {
@@ -26,3 +13,16 @@ function injectScript() {
 }
 
 injectScript();
+
+window.addEventListener("message", async (event) => {
+  if (event.source !== window) return;
+  if (!event.data?.type) return;
+  const requestId = event.data.id;
+
+  const response = await sendMessage(event.data.type, event.data.payload);
+
+  window.postMessage({
+    id: requestId,
+    response
+  }, "*");
+});

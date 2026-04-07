@@ -1,6 +1,6 @@
 /// <reference types="chrome" />
 
-import { Vault } from "../lib/core/vault";
+import { vaultService } from "../lib/core/vault/service";
 import {
   type MessageMap,
   type MessageRequest,
@@ -13,7 +13,6 @@ import {
 } from "../types/message/zod";
 import { handleConnectWallet } from "./service";
 
-const vault = new Vault();
 
 chrome.runtime.onMessage.addListener(
   <T extends keyof MessageMap>(
@@ -24,17 +23,26 @@ chrome.runtime.onMessage.addListener(
     (async () => {
       try {
         switch (message.type) {
+          case "LOGGER" : {
+            console.log("Logger Message from Content Script:", message.payload);
+            sendResponse({
+              success: true,
+              data: null
+            });
+            break;
+          }
+
           case "VAULT_EXISTS": {
             sendResponse({
               success: true,
-              data: await vault.exists(),
+              data: await vaultService.exists(),
             });
             break;
           }
 
           case "VAULT_CREATE": {
             const payload = VaultCreateRequestSchema.parse(message.payload);
-            const mnemonic = await vault.create(payload.password);
+            const mnemonic = await vaultService.create(payload.password);
             sendResponse({
               success: true,
               data: mnemonic
@@ -44,7 +52,7 @@ chrome.runtime.onMessage.addListener(
 
           case "VAULT_UNLOCK": {
             const payload = VaultUnlockRequestSchema.parse(message.payload);
-            const account = await vault.unlock(payload.password);
+            const account = await vaultService.unlock(payload.password);
             sendResponse({
               success: true,
               data: account
@@ -53,7 +61,7 @@ chrome.runtime.onMessage.addListener(
           }
 
           case "VAULT_CLEAR": {
-            await vault.clear();
+            await vaultService.clear();
             sendResponse({
               success: true,
               data: null
@@ -62,7 +70,7 @@ chrome.runtime.onMessage.addListener(
           }
 
           case "VAULT_IS_UNLOCKED": {
-            const isUnlocked = await vault.getIsUnlocked();
+            const isUnlocked = await vaultService.getIsUnlocked();
             sendResponse({
               success: true,
               data: isUnlocked
@@ -71,7 +79,7 @@ chrome.runtime.onMessage.addListener(
           }
 
           case "VAULT_GET_ACTIVE_ACCOUNT": {
-            const activeAccount = await vault.getActiveAccount();
+            const activeAccount = await vaultService.getActiveAccount();
             sendResponse({
               success: true,
               data: activeAccount
@@ -81,7 +89,7 @@ chrome.runtime.onMessage.addListener(
 
           case "CONNECT_WALLET": {
             const payload = ConnectWalletRequestSchema.parse(message.payload);
-            const response = await handleConnectWallet(payload, vault);
+            const response = await handleConnectWallet(payload);
             sendResponse({
               success: response.success,
               data: response.data,
