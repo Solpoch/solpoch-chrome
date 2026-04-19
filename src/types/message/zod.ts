@@ -69,5 +69,25 @@ export type ApprovalManagerResponseRequest = z.infer<typeof ApprovalManagerRespo
 
 export const GetApprovalsFromManagerRequestSchema = z.object({
   id: z.string(),
+  // Optional type hint — when supplied, the background validates the stored
+  // entry's type matches before returning it.
+  type: z.enum(["APPROVAL_SIGN_AND_SEND_TRANSACTION", "APPROVAL_SIGN_TRANSACTION"]).optional(),
 });
 export type GetApprovalsFromManagerRequest = z.infer<typeof GetApprovalsFromManagerRequestSchema>;
+
+export const SimuateUsingTransactionSchema = z.object({
+  transaction: z.array(z.number()),
+  password: z.string().min(8, "Password must be at least 8 characters long"),
+})
+export type SimulateUsingTransactionRequest = z.infer<typeof SimuateUsingTransactionSchema>;
+
+export const PopupSignTransactionSchema = z.object({
+  metadata: z.object({
+    origin: z.string().url("Origin must be a valid URL"),
+    favicon: z.string().optional(),
+  }),
+  params: z.object({
+    transaction: z.array(z.number()),
+  }),
+});
+export type PopupSignTransactionRequest = z.infer<typeof PopupSignTransactionSchema>;

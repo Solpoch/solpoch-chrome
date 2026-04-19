@@ -2,7 +2,7 @@
 
 import { vaultService } from "../../lib/core/vault/service";
 import { TransactionService } from "../../lib/core/walletService/transaction.service";
-import { handleConnectWallet, handleSignAndSendTransaction } from "../../lib/core/walletService/daap.service";
+import { handleConnectWallet, handleSignAndSendTransaction, handleSignTransaction } from "../../lib/core/walletService/daap.service";
 import {
   type MessageMap,
   type MessageRequest,
@@ -14,8 +14,9 @@ import {
   ConnectWalletRequestSchema,
   SendTransactionRequestSchema,
   PopupSignAndSendTransactionSchema,
-  ApprovalManagerResponseRequestSchema,
-  GetApprovalsFromManagerRequestSchema
+  GetApprovalsFromManagerRequestSchema,
+  SimuateUsingTransactionSchema,
+  PopupSignTransactionSchema
 } from "../../types/message/zod";
 import { ApprovalManager, type ApprovalManagerResponse } from "./ApprovalManager";
 
@@ -129,6 +130,17 @@ chrome.runtime.onMessage.addListener(
             break;
           }
 
+          case "POPUP_SIGN_TRANSACTION": {
+            const payload = PopupSignTransactionSchema.parse(message.payload);
+            const response = await handleSignTransaction(payload);
+            sendResponse({
+              success: response.success,
+              data: response.data,
+              error: response?.error,
+            });
+            break;
+          }
+
           case "SIGN_AND_SEND_TRANSACTION": {
             const payload = SendTransactionRequestSchema.parse(message.payload);
             const response = await TransactionService.sendTransaction(payload.to, payload.amount, payload.password);
@@ -151,23 +163,41 @@ chrome.runtime.onMessage.addListener(
             break;
           }
 
-          case "APPROVAL_MANAGER_RESSOLVE": {
-            const payload = message.payload as ApprovalManagerResponse[keyof ApprovalManagerResponse];
-            ApprovalManager.resolveApproval(payload.id, payload);
+          case "GET_APPROVALS_FROM_MANAGER": {
+            const payload = GetApprovalsFromManagerRequestSchema.parse(message.payload);
+            // Pass the optional `type` hint so getApproval validates the stored
+            // entry matches what the popup expects before sending it back.
+            const approvals = payload.type
+              ? ApprovalManager.getApproval(payload.id, payload.type)
+              : ApprovalManager.getApproval(payload.id);
             sendResponse({
               success: true,
-              data: null
+              data: approvals as MessageMap["GET_APPROVALS_FROM_MANAGER"]["res"]
+            } as MessageResponse<T>);
+            break;
+          }
+
+          case "SIMULATE_USING_TRANSACTION": {
+            console.log('Received SIMULATE_USING_TRANSACTION message in background:', message);
+            const payload = SimuateUsingTransactionSchema.parse(message.payload);
+            const response = await TransactionService.simulateTransactionUsingTransaction(payload.transaction, payload.password);
+            console.log('Response from simulateTransactionUsingTransaction:', response);
+            sendResponse({
+              success: response.success,
+              data: response.data,
+              error: response?.error,
             });
             break;
           }
 
-          case "GET_APPROVALS_FROM_MANAGER": {
-            const payload = GetApprovalsFromManagerRequestSchema.parse(message.payload);
-            const approvals = ApprovalManager.getApproval(payload.id);
-            sendResponse({
-              success: true,
-              data: approvals
-            });
+          default: {
+            // Auto-generated: handles APPROVAL_MANAGER_RESOLVE_<type> for every ApprovalType
+            if (message.type.startsWith("APPROVAL_MANAGER_RESOLVE_")) {
+              console.log('Received approval resolution message in background:', message);
+              const payload = message.payload as ApprovalManagerResponse[keyof ApprovalManagerResponse] & { id: string };
+              ApprovalManager.resolveApproval(payload.id, payload);
+              sendResponse({ success: true, data: null });
+            }
             break;
           }
 

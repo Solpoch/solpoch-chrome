@@ -18,7 +18,7 @@ export abstract class TransactionService {
     return { tx, publicKey: account.pubkey }
   }
 
-  private static async signTransaction(tx: Transaction, password: string): Promise<Transaction> {
+  static async signTransaction(tx: Transaction, password: string): Promise<Transaction> {
     const signedTx = await vaultService.signTransaction(tx, password)
     return signedTx
   }
@@ -129,6 +129,23 @@ export abstract class TransactionService {
     const signedTx = await this.signTransaction(transaction, password);
     const signature = await RpcService.sendRawTransaction(signedTx);
     return signature;
+  }
+
+  static async simulateTransactionUsingTransaction(tx: number[], password: string): Promise<MessageResponse<"SIMULATE_USING_TRANSACTION">> {
+    try {
+      const transaction = Transaction.from(tx);
+    const signedTx = await this.signTransaction(transaction, password);
+    const config: SimulateTransactionConfig = { commitment: "confirmed" }
+    const simulation = await RpcService.simulateTransaction(signedTx, config);
+
+    console.log("Simulation result:", simulation)
+    return {
+      success: true,
+      data: simulation.value,
+    }
+    } catch (error) {
+      throw new Error(`Simulation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
 }
