@@ -74,7 +74,9 @@ export const GetApprovalsFromManagerRequestSchema = z.object({
   type: z.enum([
     "APPROVAL_SIGN_AND_SEND_TRANSACTION",
     "APPROVAL_SIGN_TRANSACTION",
-    "APPROVAL_SIGN_ALL_TRANSACTIONS"
+    "APPROVAL_SIGN_ALL_TRANSACTIONS",
+    "APPROVAL_SIGN_MESSAGE",
+    "APPROVAL_SIGN_IN"
   ]).optional(),
 });
 export type GetApprovalsFromManagerRequest = z.infer<typeof GetApprovalsFromManagerRequestSchema>;
@@ -112,3 +114,38 @@ export const PopupSignTransactionsSchema = z.object({
   }),
 });
 export type PopupSignTransactionsRequest = z.infer<typeof PopupSignTransactionsSchema>;
+
+export const PopupSignMessageSchema = z.object({
+  metadata: z.object({
+    origin: z.string().url("Origin must be a valid URL"),
+    favicon: z.string().optional(),
+  }),
+  params: z.object({
+    message: z.array(z.number()),
+  }),
+});
+export type PopupSignMessageRequest = z.infer<typeof PopupSignMessageSchema>;
+
+export const PopupSignInSchema = z.object({
+  metadata: z.object({
+    origin: z.string().url("Origin must be a valid URL"),
+    favicon: z.string().optional(),
+  }),
+  params: z.object({
+    input: z.object({
+      domain: z.string().optional(),
+      address: z.string().optional(),
+      statement: z.string().optional(),
+      uri: z.string().optional(),
+      version: z.string().optional(),
+      chainId: z.string().optional(),
+      nonce: z.string().optional(),
+      issuedAt: z.string().optional(),
+      expirationTime: z.string().optional(),
+      notBefore: z.string().optional(),
+      requestId: z.string().optional(),
+      resources: z.readonly(z.array(z.string()).optional()),
+    }).optional()
+  }),
+});
+export type PopupSignInRequest = z.infer<typeof PopupSignInSchema>;

@@ -4,11 +4,19 @@ import type { SolanaSignInInput, SolanaSignInOutput } from '@solana/wallet-stand
 import type { Solpoch, SolpochEvent } from '../solpoch-wallet-standard/window.ts';
 import { sendWindowMessage } from '../utils/chrome/message.ts';
 import { getLogoUrl } from '../utils/dom/getLogoUrl.ts';
+import type { WalletAccount } from '@wallet-standard/base';
+import bs58 from 'bs58';
+import { chains, features } from '../utils/solana/walletFeatures.ts';
 
 
 export class ProviderSolana implements Solpoch {
   private _publicKey: PublicKey | null = null;
   private _listeners: { [E in keyof SolpochEvent]?: SolpochEvent[E][] } = {};
+  private _account: Readonly<WalletAccount> | null = null;
+
+  get accounts(): readonly WalletAccount[] {
+    return this._account ? [this._account] : [];
+  }
 
   get publicKey(): PublicKey | null {
     return this._publicKey;
@@ -17,8 +25,17 @@ export class ProviderSolana implements Solpoch {
   async connect(_options?: { onlyIfTrusted?: boolean }): Promise<{ publicKey: PublicKey }> {
     try {
       const logoUrl = getLogoUrl();
+      // response.publicKey is in base58 format
       const response = await sendWindowMessage('CONNECT_WALLET', { origin: window.location.origin, logoUrl });
-      this._publicKey = new PublicKey(response.publicKey);
+      const pubkeyBytes = bs58.decode(response.publicKey)
+      this._account = Object.freeze({
+        address: response.publicKey,
+        publicKey: new Uint8Array(pubkeyBytes),
+        chains,
+        features
+      });
+      console.log("ACCOUNT OBJECT ID", this._account)
+      this._publicKey = new PublicKey(pubkeyBytes)
       this._emit('connect');
       return { publicKey: this._publicKey };
     } catch (error) {
@@ -88,7 +105,7 @@ export class ProviderSolana implements Solpoch {
       const signedTx = Transaction.from(response.transaction);
       return signedTx as T;
     } catch (error) {
-      throw new Error('signTransaction is not implemented yet');
+      throw new Error('signTransaction error: ' + error);
     }
   }
 
@@ -126,15 +143,55 @@ export class ProviderSolana implements Solpoch {
 
   async signMessage(_message: Uint8Array): Promise<{ signature: Uint8Array }> {
     try {
-      // const logoUrl = getLogoUrl();
+      const logoUrl = getLogoUrl();
+      const payload = {
+        metadata: {
+          origin: window.location.origin,
+          favicon: logoUrl
+        },
+        params: {
+          message: Array.from(_message),
+        }
+      }
+      const response = await sendWindowMessage("POPUP_SIGN_MESSAGE", payload);
+      const uintSignature = new Uint8Array(response.signature);
+      if (uintSignature.length === 0) {
+        throw new Error('User rejected the sign message request.');
+      }
+      return {
+        signature: uintSignature
+      };
     } catch (error) {
-
+      throw new Error('signMessage error: ' + error);
     }
-    throw new Error('signMessage is not implemented yet');
   }
 
   async signIn(_input?: SolanaSignInInput): Promise<SolanaSignInOutput> {
-    throw new Error('signIn is not implemented yet');
+    try {
+      if (!this._account) {
+        throw new Error('Wallet not connected');
+      }
+      const logoUrl = getLogoUrl();
+      const payload = {
+        metadata: {
+          origin: window.location.origin,
+          favicon: logoUrl
+        },
+        params: {
+          input: _input
+        }
+      };
+      const response = await sendWindowMessage("POPUP_SIGN_IN", payload);
+      return {
+        account: this._account,
+        signedMessage: new Uint8Array(response.signedMessage),
+        signature: new Uint8Array(response.signature),
+        signatureType: "ed25519"
+      };
+
+    } catch (error) {
+      throw new Error('signIn error: ' + error);
+    }
   }
 
   // --------------- event emitter ---------------

@@ -4,6 +4,7 @@ import { keypairFromMnemonic, publicKeyFromMnemonic } from "../derivation";
 import type { Account, VaultDataV1 } from "../../../types/vault";
 import type { Transaction } from "@solana/web3.js";
 import { WalletSessionService } from "../walletService/session.service";
+import nacl from "tweetnacl";
 
 export class Vault {
 
@@ -42,11 +43,11 @@ export class Vault {
   async create(password: string): Promise<string> {
     const mnemonic = generateMnemonic();
     const encryptedMnemonic = await encryptMnemonic(mnemonic, password);
-    const keypair = publicKeyFromMnemonic(mnemonic, 0);
-    console.log("keypair from mnemonic:", keypair);
+    const base64PublicKey = publicKeyFromMnemonic(mnemonic, 0);
+    console.log("base64PublicKey from mnemonic:", base64PublicKey);
     const vaultData: VaultDataV1 = {
       encryptedMnemonic: encryptedMnemonic,
-      accounts: [{ index: 0, pubkey: keypair }],
+      accounts: [{ index: 0, pubkey: base64PublicKey }],
       activeAccountIndex: 0,
       version: 1,
     };
@@ -86,6 +87,31 @@ export class Vault {
     const keypair = keypairFromMnemonic(mnemonic, activeAccount.index)
     tx.sign(keypair)
     return tx
+  }
+
+  async singMessage(message: Uint8Array, password: string): Promise<{ signature: Uint8Array }> {
+    const isUnlocked = await this.getIsUnlocked();
+    if (!isUnlocked) {
+      throw new Error("Vault locked")
+    }
+    const mnemonic = await this.decryptMnemonicFromPassword(password);
+    const activeAccount = await this.getActiveAccount();
+    const keypair = keypairFromMnemonic(mnemonic, activeAccount.index)
+    const signature = nacl.sign.detached(message, keypair.secretKey);
+    return { signature };
+  }
+
+  async signIn(input: string, password: string): Promise<{ signature: Uint8Array }> {
+    const isUnlocked = await this.getIsUnlocked();
+    if (!isUnlocked) {
+      throw new Error("Vault locked")
+    }
+    const mnemonic = await this.decryptMnemonicFromPassword(password);
+    const activeAccount = await this.getActiveAccount();
+    const keypair = keypairFromMnemonic(mnemonic, activeAccount.index)
+    const message = new TextEncoder().encode(input);
+    const signature = nacl.sign.detached(message, keypair.secretKey);
+    return { signature };
   }
 
 }

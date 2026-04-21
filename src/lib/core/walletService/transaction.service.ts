@@ -2,6 +2,8 @@ import { PublicKey, SystemProgram, Transaction, type SimulateTransactionConfig }
 import { vaultService } from "../vault/service"
 import type { MessageResponse } from "../../../types/message"
 import { RpcService } from "../../rpc"
+import bs58 from "bs58";
+import { chains, features } from "../../utils/solana/walletFeatures";
 
 export abstract class TransactionService {
 
@@ -175,6 +177,49 @@ export abstract class TransactionService {
       }
     } catch (error) {
       throw new Error(`Simulation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  static async signMessage(message: number[], password: string): Promise<{ signature: number[] }> {
+    try {
+      const uintMessage = new Uint8Array(message);
+
+      const signature = await vaultService.singMessage(uintMessage, password);
+
+      return {
+        signature: Array.from(signature.signature)
+      };
+    } catch (error) {
+      throw new Error(`Sign message failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  static async signIn(input: string, password: string): Promise<{
+    account: {
+      address: string,
+      publicKey: number[],
+      chains: typeof chains,
+      features: typeof features
+    },
+    signedMessage: number[],
+    signature: number[],
+  }> {
+    try {
+      const signature = await vaultService.signIn(input, password);
+      const pubkey = (await vaultService.getActiveAccount()).pubkey;
+
+      return {
+        account: {
+          address: pubkey,
+          publicKey: Array.from(bs58.decode(pubkey)),
+          chains: chains,
+          features: features,
+        },
+        signedMessage: Array.from(new TextEncoder().encode(input)),
+        signature: Array.from(signature.signature)
+      };
+    } catch (error) {
+      throw new Error(`Sign in failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
