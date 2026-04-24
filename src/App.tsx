@@ -8,7 +8,8 @@ import ProfileAvatar from "./components/ui/home/ProfileAvatar";
 import { ArrowDownLeftIcon, ArrowsLeftRightIcon, ArrowUpRightIcon, DotsThreeIcon, GearIcon, UserCirclePlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { RpcService } from "./lib/rpc";
-import { lamportsToSol } from "./lib/utils/solana/solLamportConversion";
+import { lamportsToSol } from "./lib/utils/solana/conversion";
+import TokenList from "./components/ui/home/TokenList";
 // import PopCard from "./components/ui/layout/PopCard";
 
 function App() {
@@ -45,13 +46,13 @@ function App() {
     }
   })
 
-  const cleanWallet = async () => {
-    await sendMessage("VAULT_CLEAR", undefined);
-  }
+  // const cleanWallet = async () => {
+  //   await sendMessage("VAULT_CLEAR", undefined);
+  // }
 
-  if (status === "LOCKED") {
-    return <Unlock setStatus={setStatus} />;
-  }
+  // if (status === "LOCKED") {
+  //   return <Unlock setStatus={setStatus} />;
+  // }
 
   return (
     <SafeArea>
@@ -66,7 +67,7 @@ function App() {
               >
                 <UserCirclePlusIcon size={24} className="text-gray-300" weight="fill" />
               </button>
-              <button className="p-1.5 rounded-full bg-white/5">
+              <button className="p-1.5 rounded-full bg-white/5" onClick={() => navigate("/settings")}>
                 <GearIcon size={24} className="text-gray-300" weight="fill" />
               </button>
             </div>
@@ -75,8 +76,8 @@ function App() {
           <div className="flex flex-col items-center justify-center">
             <div className="mt-6 flex flex-col items-center justify-center">
               <h3 className="text-xs text-gray-300 mb-2">Total Balance</h3>
-              <h1 className="text-5xl font-semibold">{balanceQuery.data ? (lamportsToSol(balanceQuery.data)) : "0.00"} SOL</h1>
-              <p className="text-sm text-emerald-500 mt-2">+2.5% from last week</p>
+              <h1 className="text-5xl font-semibold text-center">{balanceQuery.data ? (lamportsToSol(balanceQuery.data)) : "0.00"} SOL</h1>
+              <p className="text-sm text-emerald-500 mt-2">Solana Devnet</p>
             </div>
 
             <div className="mt-6 flex gap-4 flex-wrap">
@@ -101,6 +102,7 @@ function App() {
               <div className="flex flex-col justify-center items-center">
                 <button
                   className="flex bg-white/20 text-sm rounded-full justify-center items-center w-16 h-16 inset-top-light"
+                  onClick={() => navigate("/swap")}
                 >
                   <ArrowsLeftRightIcon size={24} weight="bold" className="mr-1" />
                 </button>
@@ -109,7 +111,7 @@ function App() {
               <div className="flex flex-col justify-center items-center">
                 <button
                   className="flex bg-white/20 text-sm rounded-full justify-center items-center w-16 h-16 inset-top-light"
-                  onClick={cleanWallet}
+                  onClick={() => navigate("/more")}
                 >
                   <DotsThreeIcon size={24} weight="bold" className="mr-1" />
                 </button>
@@ -120,93 +122,7 @@ function App() {
 
         </div>
 
-        <div className="p-6">
-          <h2 className="text-sm">Tokens</h2>
-
-          <div className="flex justify-between items-center mt-2 p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm uppercase">A</div>
-              <div>
-                <h3 className="text-sm">Amit Coin</h3>
-                <p className="text-xs text-gray-500">0.00</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-0.5 items-end">
-              <p className="text-sm">$17,000</p>
-              <p className="text-xs text-emerald-500">+2.5%</p>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-2 p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm uppercase">K</div>
-              <div>
-                <h3 className="text-sm">Kirat Coin</h3>
-                <p className="text-xs text-gray-500">0.00</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-0.5 items-end">
-              <p className="text-sm">$17,000</p>
-              <p className="text-xs text-emerald-500">+2.5%</p>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-2 p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm uppercase">S</div>
-              <div>
-                <h3 className="text-sm">Jupiter</h3>
-                <p className="text-xs text-gray-500">0.00</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-0.5 items-end">
-              <p className="text-sm">$17,000</p>
-              <p className="text-xs text-emerald-500">+2.5%</p>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-2 p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm uppercase">S</div>
-              <div>
-                <h3 className="text-sm">Solana</h3>
-                <p className="text-xs text-gray-500">0.00</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-0.5 items-end">
-              <p className="text-sm">$17,000</p>
-              <p className="text-xs text-emerald-500">+2.5%</p>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-2 p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm uppercase">S</div>
-              <div>
-                <h3 className="text-sm">Solana</h3>
-                <p className="text-xs text-gray-500">0.00</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-0.5 items-end">
-              <p className="text-sm">$17,000</p>
-              <p className="text-xs text-emerald-500">+2.5%</p>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-2 p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm uppercase">S</div>
-              <div>
-                <h3 className="text-sm">Solana</h3>
-                <p className="text-xs text-gray-500">0.00</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-0.5 items-end">
-              <p className="text-sm">$17,000</p>
-              <p className="text-xs text-emerald-500">+2.5%</p>
-            </div>
-          </div>
-        </div>
+        <TokenList />
 
       </div>
     </SafeArea>

@@ -13,8 +13,8 @@ import type { SimulatedTransactionResponse } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 import { sendMessage } from "../../../lib/utils/chrome/message";
 import ConfirmWithPassword from "../util/ConfirmWithPassword";
-import { useNavigate } from "react-router-dom";
-import { solToLamports, lamportsToSol } from "../../../lib/utils/solana/conversion";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { lamportsToSol, tokensToLargestUnit } from "../../../lib/utils/solana/conversion";
 import SimulatingOverlay from "../popup/signAndSendTransaction/SimulatingOverlay";
 import StatusBadge from "../popup/signAndSendTransaction/StatusBadge";
 import SectionCard from "../popup/signAndSendTransaction/SectionCard";
@@ -23,13 +23,43 @@ import { shortAddress } from "../../../lib/utils/solana/parse";
 import { useAccountStore } from "../../../store";
 import { AccountBookService } from "../../../lib/core/walletService/accountBook.service";
 
-export default function ConfirmSend({
+// TODO: make this check logic better.. real check that if destination doesn't have a ata.
+function canProceedWithAtaCreation(simulation: SimulatedTransactionResponse | null) {
+  if (!simulation) return false;
+
+  const errText = simulation.err ? JSON.stringify(simulation.err) : "";
+  const logsText = simulation.logs?.join(" ") ?? "";
+  const combined = `${errText} ${logsText}`.toLowerCase();
+
+  const mentionsAta =
+    combined.includes("associated token account") ||
+    combined.includes(" ata ") ||
+    combined.includes("ata for");
+  const mentionsMissing =
+    combined.includes("not present") ||
+    combined.includes("does not have") ||
+    combined.includes("missing") ||
+    combined.includes("not found") ||
+    combined.includes("invalid account data");
+
+  return mentionsAta && mentionsMissing;
+}
+
+export default function ConfirmSendSplToken({
   amount,
   toAddress,
 }: {
   amount: string;
   toAddress: string;
 }) {
+  const param = useParams();
+  const [searchParams] = useSearchParams();
+  // const tokenName = searchParams.get("name");
+  const tokenLogo = searchParams.get("logo");
+  const tokenSymbol = searchParams.get("symbol");
+  const tokenDecimals = searchParams.get("decimals");
+  const mintAddressBase58 = param.mint;
+
   const [simulating, setSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulatedTransactionResponse | null>(null);
   const [password, setPassword] = useState<string>("");
@@ -42,18 +72,23 @@ export default function ConfirmSend({
 
   useEffect(() => {
     async function simulate() {
+      if (!mintAddressBase58 || !toAddress || !amount || !password) {
+        setCanSend(false);
+        return;
+      }
       setSimulating(true);
       try {
-        const response = await sendMessage("SIMULATE_TRANSACTION", {
-          to: toAddress,
-          amount: solToLamports(parseFloat(amount)),
+        const response = await sendMessage("SIMULATE_TOKEN_TRANSACTION", {
+          mint: mintAddressBase58,
+          destination: toAddress,
+          amount: tokensToLargestUnit(parseFloat(amount), parseInt(tokenDecimals || "0")),
           password,
         });
         setSimulationResult(response);
-        setCanSend(!response?.err);
+        setCanSend(!response?.err || canProceedWithAtaCreation(response));
       } catch (error) {
         console.error("Simulation error:", error);
-        setCanSend(false);
+        setCanSend(true);
       } finally {
         setSimulating(false);
       }
@@ -64,6 +99,10 @@ export default function ConfirmSend({
   }, [toAddress, amount, confimedWithPassword]);
 
   const handleSend = async () => {
+    if (!mintAddressBase58 || !toAddress || !amount || !password) {
+      setCanSend(false);
+      return;
+    }
     setCanSend(false);
     setIsSending(true);
     if (password.length === 0) {
@@ -72,9 +111,10 @@ export default function ConfirmSend({
       return;
     }
     try {
-      const response = await sendMessage("SIGN_AND_SEND_TRANSACTION", {
-        to: toAddress,
-        amount: solToLamports(parseFloat(amount)),
+      const response = await sendMessage("SIGN_AND_SEND_TOKEN_TRANSACTION", {
+        mint: mintAddressBase58,
+        destination: toAddress,
+        amount: tokensToLargestUnit(parseFloat(amount), parseInt(tokenDecimals || "0")),
         password,
       });
       setSignature(response);
@@ -146,7 +186,7 @@ export default function ConfirmSend({
           />
           <Row
             label="Amount"
-            value={`${amount} SOL`}
+            value={`${amount} ${tokenSymbol || "Tokens"}`}
             icon={<CurrencyDollarIcon size={13} />}
             accent="red"
           />
@@ -170,6 +210,7 @@ export default function ConfirmSend({
   // ── Main confirm view ──────────────────────────────────────────────────────
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
+  const canProceedWithMissingAta = canProceedWithAtaCreation(simulationResult);
   const estimatedFee = lamportsToSol(5000);
 
   return (
@@ -179,7 +220,7 @@ export default function ConfirmSend({
         {/* Header */}
         <div className="flex gap-3 items-center mb-1">
           <div className="flex bg-white/5 rounded-full p-4">
-            <img src="/solana-logo.png" alt="logo" className="w-8" />
+            <img src={tokenLogo || "/logo.png"} alt="logo" className="w-8" />
           </div>
           <div>
             <h2 className="text-sm">Confirm Send</h2>
@@ -191,6 +232,16 @@ export default function ConfirmSend({
         {simulationResult && (
           <div className="flex items-center justify-between gap-2">
             <StatusBadge err={simErr} />
+          </div>
+        )}
+
+        {canProceedWithMissingAta && (
+          <div className="flex items-start gap-2 rounded-xl bg-yellow-500/[0.07] border border-yellow-500/20 px-3 py-2.5">
+            <WarningCircleIcon size={14} className="text-yellow-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-yellow-300/80 leading-5">
+              Destination {shortAddress(toAddress)} does not have an ATA for {tokenSymbol || "this token"}. The ATA
+              will be created and you will pay the account creation fee. Confirm to continue.
+            </p>
           </div>
         )}
 
@@ -218,7 +269,7 @@ export default function ConfirmSend({
                   </div>
                 </div>
                 <p className="text-xs font-semibold text-red-400 shrink-0">
-                  -{amount} SOL
+                  -{amount} {tokenSymbol || "Tokens"}
                 </p>
               </div>
             </div>
@@ -245,7 +296,7 @@ export default function ConfirmSend({
             <SectionCard>
               <Row
                 label="Amount"
-                value={`${amount} SOL`}
+                value={`${amount} ${tokenSymbol || "Tokens"}`}
                 icon={<CurrencyDollarIcon size={13} />}
                 accent="red"
               />

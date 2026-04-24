@@ -2,10 +2,12 @@ import { checkPassword, decryptMnemonic, encryptMnemonic } from "../crypto";
 import { generateMnemonic } from "bip39";
 import { keypairFromMnemonic, publicKeyFromMnemonic } from "../derivation";
 import type { Account, VaultDataV1 } from "../../../types/vault";
-import type { Transaction } from "@solana/web3.js";
+import { type Transaction } from "@solana/web3.js";
 import { WalletSessionService } from "../walletService/session.service";
 import nacl from "tweetnacl";
 import { AccountBookService } from "../walletService/accountBook.service";
+// import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+// import { RpcService } from "../../rpc";
 
 export class Vault {
 
@@ -136,5 +138,21 @@ export class Vault {
     const signature = nacl.sign.detached(message, keypair.secretKey);
     return { signature };
   }
+
+  // async getOrCreateAssociatedTokenAccounts(owner: string, mintAddress: string, password: string): Promise<string> {
+  //   const connection = RpcService.getConnection();
+  //   const activeAccount = await this.getActiveAccount();
+  //   const payer = keypairFromMnemonic(await this.decryptMnemonicFromPassword(password), activeAccount.index)
+
+  //   // TODO: get or create - "create" uses window object and is not working in background service worker, so we have to do it ourselves here.
+  //   const tokenAccounts = await getOrCreateAssociatedTokenAccount(
+  //     connection,
+  //     payer,
+  //     new PublicKey(mintAddress),
+  //     new PublicKey(owner)
+  //   );
+
+  //   return tokenAccounts.address.toBase58();
+  // }
 
 }
