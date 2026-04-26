@@ -2,12 +2,15 @@ import App from "./App";
 import Accounts from "./components/pages/Accounts";
 import ConnectApprove from "./components/pages/ConnectApprove";
 import ErrorPage from "./components/pages/ErrorPage";
-import More from "./components/pages/More";
+import SolanaRpcHttpMethods from "./components/pages/More/SolanaRpcHttpMethods";
+import More from "./components/pages/More/More";
 import Onboarding from "./components/pages/Onboarding";
 import Recieve from "./components/pages/Recieve";
 import Send from "./components/pages/Send";
 import SendSplTokens from "./components/pages/SendSPLtokens";
-import Settings from "./components/pages/Settings";
+import PrivateKey from "./components/pages/Settings/PrivateKey";
+import Settings from "./components/pages/Settings/Settings";
+import ViewMnemonic from "./components/pages/Settings/ViewMnemonics";
 import SignAllTransactionsApproval from "./components/pages/SignAllTransactionsApproval";
 import SignAndSendTransactionApproval from "./components/pages/SignAndSendTransactionApproval";
 import SignInApproval from "./components/pages/SignIn";
@@ -21,7 +24,7 @@ import UnlockPopup from "./components/pages/UnlockPopup";
 export const routes = [
   {
     path: '*',
-    element: <div>Not Found</div>,
+    element: <ErrorPage />,
   },
   {
     path: '/',
@@ -95,5 +98,17 @@ export const routes = [
   {
     path: '/settings',
     element: <Settings />
+  },
+  {
+    path: '/view-private-key',
+    element: <PrivateKey />
+  },
+  {
+    path: '/view-mnemonics',
+    element: <ViewMnemonic />
+  },
+  {
+    path: '/http-methods',
+    element: <SolanaRpcHttpMethods />
   }
 ]
