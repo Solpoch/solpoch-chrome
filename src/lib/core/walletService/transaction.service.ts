@@ -5,6 +5,7 @@ import { RpcService } from "../../rpc"
 import bs58 from "bs58";
 import { chains, features } from "../../utils/solana/walletFeatures";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, TokenAccountNotFoundError, TokenInvalidAccountOwnerError, TokenInvalidMintError, TokenInvalidOwnerError, type Account } from "@solana/spl-token";
+import { RpcTracer } from "../../rpc/tracer";
 
 export abstract class TransactionService {
 
@@ -31,17 +32,28 @@ export abstract class TransactionService {
     amount: number,
     password: string
   ): Promise<MessageResponse<"SIMULATE_TRANSACTION">> {
+    const rootSpan = RpcTracer.start("SIMULATION_FLOW", [to, amount]);
+    const ctx = {
+      traceId: rootSpan.traceId,
+      parentId: rootSpan.id,
+    };
+
+    RpcTracer.addEvent(rootSpan.id, "Building transaction");
     const { tx, publicKey } = await this.buildTransaction(to, amount);
 
-    const { blockhash } = await RpcService.getLatestBlockhash()
+    RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
+    const { blockhash } = await RpcService.getLatestBlockhash(ctx);
     tx.recentBlockhash = blockhash
     tx.feePayer = new PublicKey(publicKey)
 
+    RpcTracer.addEvent(rootSpan.id, "Signing transaction");
     const signedTx = await this.signTransaction(tx, password)
     const config: SimulateTransactionConfig = { commitment: "confirmed" }
-    const simulation = await RpcService.simulateTransaction(signedTx, config);
+    RpcTracer.addEvent(rootSpan.id, "Simulating transaction");
+    const simulation = await RpcService.simulateTransaction(signedTx, config, ctx);
 
-    console.log("Simulation result:", simulation)
+    RpcTracer.success(rootSpan.id, shapeResult("simulateTransaction", simulation));
+    console.log("Simulation result:", simulation);
     return {
       success: true,
       data: simulation.value,
@@ -382,4 +394,23 @@ export abstract class TransactionService {
     return account;
   }
 
+}
+
+function shapeResult(method: string, result: any) {
+  switch (method) {
+    case "getBalance":
+      return { balance: result };
+
+    case "sendRawTransaction":
+      return { signature: result };
+
+    case "simulateTransaction":
+      return {
+        err: result.value.err,
+        logs: result.value.logs?.slice(0, 10),
+      };
+
+    default:
+      return { ok: true };
+  }
 }

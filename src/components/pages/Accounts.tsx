@@ -6,7 +6,7 @@ import { useAccountStore } from "../../store";
 import { useEffect, useState } from "react";
 import type { Account } from "../../types/vault";
 import { sendMessage } from "../../lib/utils/chrome/message";
-import { RpcService } from "../../lib/rpc";
+import { RpcServiceContent } from "../../lib/rpc/content";
 import { lamportsToSol } from "../../lib/utils/solana/conversion";
 import ConfirmWithPassword from "../ui/util/ConfirmWithPassword";
 
@@ -26,7 +26,7 @@ export default function Accounts() {
     setAccounts(accounts);
     const balanceMap: Record<string, number> = {};
     for (const acc of accounts) {
-      const balance = await RpcService.getBalance(acc.pubkey);
+      const balance = await RpcServiceContent.getBalance(acc.pubkey);
       balanceMap[acc.pubkey] = balance;
     }
     setBalanceMap(balanceMap);

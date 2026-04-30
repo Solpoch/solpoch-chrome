@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAccountStore } from "../../../store";
 import { CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
-import { RpcService } from "../../../lib/rpc";
+import { RpcServiceContent } from "../../../lib/rpc/content";
 import { useQuery } from "@tanstack/react-query";
 
 export default function TokenList() {
@@ -13,7 +13,7 @@ export default function TokenList() {
     queryKey: ["tokens", account?.pubkey.toString()],
     queryFn: async () => {
       if (!account) return [];
-      const tokens = await RpcService.getTokenList(account.pubkey);
+      const tokens = await RpcServiceContent.getTokenList(account.pubkey);
       console.log("Fetched tokens:", tokens);
       return tokens;
     }

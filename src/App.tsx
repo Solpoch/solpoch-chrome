@@ -7,7 +7,7 @@ import Unlock from "./components/ui/home/Unlock";
 import ProfileAvatar from "./components/ui/home/ProfileAvatar";
 import { ArrowDownLeftIcon, ArrowsLeftRightIcon, ArrowUpRightIcon, DotsThreeIcon, GearIcon, UserCirclePlusIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { RpcService } from "./lib/rpc";
+import { RpcServiceContent } from "./lib/rpc/content";
 import { lamportsToSol } from "./lib/utils/solana/conversion";
 import TokenList from "./components/ui/home/TokenList";
 // import PopCard from "./components/ui/layout/PopCard";
@@ -41,7 +41,7 @@ function App() {
     queryKey: ["balance", account?.pubkey],
     queryFn: async () => {
       if (!account) return 0;
-      const blance = await RpcService.getBalance(account.pubkey);
+      const blance = await RpcServiceContent.getBalance(account.pubkey);
       return blance;
     }
   })

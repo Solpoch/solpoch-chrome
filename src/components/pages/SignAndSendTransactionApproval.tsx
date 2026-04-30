@@ -34,7 +34,7 @@ import AiCrad from "../ui/layout/AiCrad";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { API_ROUTES } from "../../lib/http/api";
-import { RpcService } from "../../lib/rpc";
+import { RpcServiceContent } from "../../lib/rpc/content";
 
 export default function SignAndSendTransactionApproval() {
   const [searchParams] = useSearchParams();
@@ -170,7 +170,7 @@ export default function SignAndSendTransactionApproval() {
     queryKey: ["approvalAiExplanation", id, simErr],
     queryFn: async () => {
       if (!simErr) return null;
-      const senderBalance = account?.pubkey ? await RpcService.getBalance(account.pubkey) : "Unknown";
+      const senderBalance = account?.pubkey ? await RpcServiceContent.getBalance(account.pubkey) : "Unknown";
       const context = `
         Simulation error: ${JSON.stringify(simErr)},
         Request Origin: ${origin || "Unknown"},

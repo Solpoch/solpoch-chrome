@@ -20,7 +20,7 @@ import {
   TransactionDebuggerEngine,
   type ParsedInstructionNode,
 } from "../../../lib/utils/solana/transactionDebugger";
-import SimulatingOverlay from "../popup/signAndSendTransaction/SimulatingOverlay";
+// import SimulatingOverlay from "../popup/signAndSendTransaction/SimulatingOverlay";
 import StatusBadge from "../popup/signAndSendTransaction/StatusBadge";
 import SectionCard from "../popup/signAndSendTransaction/SectionCard";
 import Row from "../popup/signAndSendTransaction/Row";
@@ -31,8 +31,10 @@ import AiCrad from "../layout/AiCrad";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { API_ROUTES } from "../../../lib/http/api";
-import { RpcService } from "../../../lib/rpc";
+import { RpcServiceContent } from "../../../lib/rpc/content";
 import Collapsible from "../layout/Collapsible";
+import type { RpcSpan } from "../../../lib/rpc/tracer";
+import TraceView from "../popup/signAndSendTransaction/TraceView";
 
 export default function ConfirmSend({
   amount,
@@ -53,6 +55,8 @@ export default function ConfirmSend({
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
   const estimatedFee = lamportsToSol(5000);
+  const [traces, setTraces] = useState<RpcSpan[]>([]);
+  const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
 
   const parsedInstructions = useMemo(
     () => TransactionDebuggerEngine.parseInstructions(simulationResult?.logs ?? []),
@@ -143,6 +147,30 @@ export default function ConfirmSend({
     }
   }, [toAddress, amount, confimedWithPassword]);
 
+  useEffect(() => {
+    const handler = (message: any) => {
+      if (message.type !== "RPC_TRACE_UPDATE") return;
+
+      setTraces((prev) => {
+        const idx = prev.findIndex(t => t.id === message.payload.id);
+
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = message.payload;
+          return next;
+        }
+
+        return [...prev, message.payload];
+      });
+    };
+
+    chrome.runtime.onMessage.addListener(handler);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handler);
+    };
+  }, []);
+
   const handleSend = async () => {
     setCanSend(false);
     setIsSending(true);
@@ -171,7 +199,7 @@ export default function ConfirmSend({
     queryKey: ["aiExplanation", simErr],
     queryFn: async () => {
       if (!simErr) return null;
-      const senderBalance = account?.pubkey ? await RpcService.getBalance(account?.pubkey) : "Unknown";
+      const senderBalance = account?.pubkey ? await RpcServiceContent.getBalance(account?.pubkey) : "Unknown";
       const context = `
         Simulation error: ${JSON.stringify(simErr)},
         Senders Balance: ${senderBalance},
@@ -207,8 +235,12 @@ export default function ConfirmSend({
   }
 
   // ── Simulating overlay ─────────────────────────────────────────────────────
-  if (simulating) {
-    return <SimulatingOverlay />;
+  // if (simulating) {
+  //   return <SimulatingOverlay />;
+  // }
+
+  if (simulating || !viewSimulationDetails) {
+    return <TraceView traces={traces} success={simErr ? false : true} proceed={() => setViewSimulationDetails(true)} />
   }
 
   // ── Sending spinner ────────────────────────────────────────────────────────

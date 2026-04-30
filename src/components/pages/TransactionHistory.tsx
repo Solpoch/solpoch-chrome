@@ -2,7 +2,7 @@ import { useAccountStore } from "../../store";
 import ProfileAvatar from "../ui/home/ProfileAvatar";
 import SafeArea from "../ui/layout/SafeArea";
 import BackButton from "../ui/util/BackButton";
-import { RpcService } from "../../lib/rpc";
+import { RpcServiceContent } from "../../lib/rpc/content";
 import { ArrowSquareOutIcon, ClockClockwiseIcon, DotIcon } from "@phosphor-icons/react";
 import type { TransactionResponse } from "@solana/web3.js";
 import { lamportsToSol } from "../../lib/utils/solana/conversion";
@@ -106,7 +106,7 @@ export default function TransactionHistory() {
     queryKey: ["transactionHistory", account?.pubkey],
     queryFn: async () => {
       if (!account) return [];
-      return await RpcService.getTransactionsForAddress(account.pubkey);
+      return await RpcServiceContent.getTransactionsForAddress(account.pubkey);
     },
     enabled: Boolean(account),
   });

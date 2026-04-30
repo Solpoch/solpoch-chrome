@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom"
 import SafeArea from "../ui/layout/SafeArea";
 import { useAccountStore } from "../../store";
-import { RpcService } from "../../lib/rpc";
+import { RpcServiceContent } from "../../lib/rpc/content";
 import ProfileAvatar from "../ui/home/ProfileAvatar";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, ClockCounterClockwiseIcon, LinkIcon } from "@phosphor-icons/react";
 import BackButton from "../ui/util/BackButton";
@@ -21,7 +21,7 @@ export default function TokenInfo() {
     queryKey: ["ataInfo", account?.pubkey.toString(), mintAddressBase58],
     queryFn: async () => {
       if (!account || !mintAddressBase58) return null;
-      const ata = await RpcService.getAssociatedTokenAccountInfo(account.pubkey, mintAddressBase58);
+      const ata = await RpcServiceContent.getAssociatedTokenAccountInfo(account.pubkey, mintAddressBase58);
       return ata;
     },
     enabled: !!account && !!mintAddressBase58,
@@ -31,7 +31,7 @@ export default function TokenInfo() {
     queryKey: ["mintInfo", mintAddressBase58],
     queryFn: async () => {
       if (!mintAddressBase58) return null;
-      const mintInfo = await RpcService.getMintTokenInfo(mintAddressBase58);
+      const mintInfo = await RpcServiceContent.getMintTokenInfo(mintAddressBase58);
       return mintInfo;
     }
   })
