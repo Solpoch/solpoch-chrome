@@ -35,7 +35,7 @@ export default function Unlock() {
             <input
               type="password"
               placeholder="Enter your password"
-              className="w-full px-3 py-1.5 rounded bg-white/5 border border-gray-700 mb-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full px-3 py-1.5 rounded bg-white/5 border border-gray-700 mb-4 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent tracking-[5px] placeholder:tracking-normal"
               value={password}
               onChange={handelPasswordChange}
             />
