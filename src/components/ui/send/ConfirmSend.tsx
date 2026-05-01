@@ -156,6 +156,7 @@ export default function ConfirmSend({
   const estimatedFee = lamportsToSol(5000);
   const [traces, setTraces] = useState<RpcSpan[]>([]);
   const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
+  const [viewTransactionDetails, setViewTransactionDetails] = useState(false);
 
   const parsedInstructions = useMemo(
     () => TransactionDebuggerEngine.parseInstructions(simulationResult?.logs ?? []),
@@ -335,27 +336,37 @@ export default function ConfirmSend({
 
   // ── Simulating overlay ─────────────────────────────────────────────────────
   if (simulating || !viewSimulationDetails) {
-    console.log("rendering trace view", simulating, viewSimulationDetails);
-    return <TraceView traces={traces} success={simErr ? false : true} proceed={() => setViewSimulationDetails(true)} loading={simulating} />
+    console.log("Traces at render Simulation:", traces, simErr, simulating, viewSimulationDetails);
+    return <TraceView traces={traces} success={simErr ? false : true} proceed={setViewSimulationDetails} loading={simulating} />
   }
 
   // ── Sending spinner ────────────────────────────────────────────────────────
-  if (isSending) {
+  // if (isSending) {
+  //   return (
+  //     <div className="flex flex-col justify-center items-center h-full gap-4">
+  //       <div className="relative">
+  //         <div className="border-t-2 border-primary rounded-full animate-spin">
+  //           <div className="h-16 w-16" />
+  //         </div>
+  //         <img src="/logo.png" alt="logo" className="h-8 w-8 absolute top-4 left-4" />
+  //       </div>
+  //       <p className="text-xs text-gray-400">Sending transaction…</p>
+  //     </div>
+  //   );
+  // }
+
+  const shouldShowTransactionTrace = isSending || (!!signature && !viewTransactionDetails);
+
+  if (shouldShowTransactionTrace) {
+    console.log("Traces at render Transaction:", traces, isSending, viewTransactionDetails);
     return (
-      <div className="flex flex-col justify-center items-center h-full gap-4">
-        <div className="relative">
-          <div className="border-t-2 border-primary rounded-full animate-spin">
-            <div className="h-16 w-16" />
-          </div>
-          <img src="/logo.png" alt="logo" className="h-8 w-8 absolute top-4 left-4" />
-        </div>
-        <p className="text-xs text-gray-400">Sending transaction…</p>
-      </div>
+      <TraceView traces={traces} success={signature ? true : false} proceed={setViewTransactionDetails} loading={isSending} />
     );
   }
 
   // ── Success ────────────────────────────────────────────────────────────────
-  if (signature) {
+  if (signature && viewTransactionDetails) {
+    console.log("Traces at render:", traces, signature, viewTransactionDetails);
     return (
       <div className="flex flex-col justify-center items-center h-full gap-4">
         <div className="flex bg-green-500/10 rounded-full p-4">

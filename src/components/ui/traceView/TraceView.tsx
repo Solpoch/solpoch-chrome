@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { motion } from "motion/react";
 import type { RpcSpan } from "../../../lib/rpc/tracer";
 import Collapsible from "../layout/Collapsible";
@@ -74,7 +74,7 @@ function TraceViewButton({
   loading,
 }: {
   success: boolean;
-  proceed: () => void;
+  proceed: Dispatch<SetStateAction<boolean>>;
   loading: boolean;
 }) {
   return (
@@ -83,7 +83,7 @@ function TraceViewButton({
       onClick={() => {
         if (!loading) {
           console.log("Proceeding to next step");
-          proceed()
+          proceed(() => true);
         };
       }}
       className={`flex items-center justify-center gap-2 px-4 py-2.5  hover:gap-4 disabled:opacity-40 disabled:cursor-not-allowed transition-all rounded-full font-medium w-full text-xs ${success
@@ -106,11 +106,9 @@ function formatKeepViewingCountdown(durationMs: number) {
 }
 
 function KeepViewingButton({
-  loading,
   remainingMs,
   onClick,
 }: {
-  loading: boolean;
   remainingMs: number;
   onClick: () => void;
 }) {
@@ -119,7 +117,6 @@ function KeepViewingButton({
   return (
     <button
       type="button"
-      disabled={loading}
       onClick={onClick}
       className="relative flex items-center justify-center gap-2 overflow-hidden rounded-full border border-white/10 bg-primary/30 px-4 py-2.5 text-xs font-medium text-white transition-all disabled:cursor-not-allowed disabled:opacity-40 w-full"
     >
@@ -442,7 +439,7 @@ export default function TraceView({
 }: {
   traces: RpcSpan[];
   success: boolean;
-  proceed: () => void;
+  proceed: Dispatch<SetStateAction<boolean>>;
   loading: boolean;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("waterfall");
@@ -482,7 +479,7 @@ export default function TraceView({
       if (nextRemaining <= 0 && timerIdRef.current !== null) {
         window.clearInterval(timerIdRef.current);
         timerIdRef.current = null;
-        proceed();
+        proceed(() => true);
       }
     }, 50);
 
@@ -643,7 +640,6 @@ export default function TraceView({
       <div className="flex gap-3 sticky bottom-0 bg-bg/80 backdrop-blur-xs pt-2">
         {showKeepViewing ? (
           <KeepViewingButton
-            loading={loading}
             remainingMs={remainingMs}
             onClick={() => {
               setShowKeepViewing(false);
