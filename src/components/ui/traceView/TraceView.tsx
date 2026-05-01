@@ -5,6 +5,7 @@ import Collapsible from "../layout/Collapsible";
 import Row from "../popup/signAndSendTransaction/Row";
 import SectionCard from "../popup/signAndSendTransaction/SectionCard";
 import { ArrowRightIcon } from "@phosphor-icons/react";
+import { ArrowBendDownRightIcon } from "@phosphor-icons/react/dist/ssr";
 
 type ViewMode = "waterfall" | "timeline" | "tree";
 
@@ -22,16 +23,16 @@ function getSpanDuration(span: RpcSpan, now: number) {
   return (span.endTime ?? now) - span.startTime;
 }
 
-function getSpanStatusDotClass(status: RpcSpan["status"]) {
-  if (status === "pending") return "bg-amber-400 animate-pulse";
-  if (status === "success") return "bg-emerald-400";
-  return "bg-rose-400";
-}
-
 function getSpanBarClass(status: RpcSpan["status"]) {
   if (status === "pending") return "bg-amber-400/80 border-amber-300/30";
   if (status === "success") return "bg-emerald-400/80 border-emerald-300/30";
   return "bg-rose-400/80 border-rose-300/30";
+}
+
+function getColorForStatus(status: RpcSpan["status"]) {
+  if (status === "pending") return "amber";
+  if (status === "success") return "emerald";
+  return "rose";
 }
 
 function safeJson(value: unknown) {
@@ -80,8 +81,8 @@ function TraceViewButton({
     <button
       type="button"
       onClick={proceed}
-      className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 hover:gap-4 disabled:opacity-40 disabled:cursor-not-allowed transition-all rounded-full text-white font-medium w-full text-xs inset-top ${success
-        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/15"
+      className={`flex items-center justify-center gap-2 px-4 py-2.5  hover:gap-4 disabled:opacity-40 disabled:cursor-not-allowed transition-all rounded-full text-white font-medium w-full text-xs inset-top ${success
+        ? "bg-primary hover:bg-primary/90"
         : "border-rose-400/30 bg-rose-400/10 text-rose-100 hover:bg-rose-400/15"
         }`}
       disabled={!success || loading}
@@ -117,23 +118,25 @@ function WaterfallRow({
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
         {
-          depth > 0 && <div className="min-w-0 shrink-0" style={{ width: `${depth * 10}px` }} />
+          depth > 0 && <div className="min-w-0 shrink-0 h-full flex justify-center items-center" style={{ width: `${depth * 10}px` }} >
+            <ArrowBendDownRightIcon size={12} className={`text-gray-400`} />
+          </div>
         }
         <div className="shrink-0 w-32">
           <div className="truncate text-xs font-medium text-gray-100">{span.method}</div>
-          <div className="text-xs text-gray-500">{statusLabel(span.status)}</div>
+          <div className="text-[10px] text-gray-500">{statusLabel(span.status)}</div>
         </div>
 
         <div className="relative h-8 min-w-0 flex-1 overflow-hidden rounded-md border border-white/5 bg-white/4">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-size-[24px_100%]" />
           <motion.div
-            className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-md border px-2 text-xs text-gray-950 shadow-sm ${getSpanBarClass(span.status)}`}
+            className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-md border px-2 text-[10px] text-gray-950 shadow-xs ${getSpanBarClass(span.status)}`}
             style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: `${widthPercent}%`, opacity: 1 }}
             transition={{ type: "spring", stiffness: 180, damping: 24, mass: 0.7 }}
           >
-            <span className="truncate text-xs font-medium text-gray-950">{formatTimeOffset(duration)}</span>
+            <span className="truncate text-[10px] text-gray-950">{formatTimeOffset(duration)}</span>
           </motion.div>
           {isActive && (
             <div
@@ -176,23 +179,23 @@ function TimelineSpan({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-start gap-2" style={{ paddingLeft: `${depth * 14}px` }}>
-        <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${getSpanStatusDotClass(span.status)}`} />
+      <div className="flex items-start gap-2" style={{ paddingLeft: `${depth * 10}px` }}>
+        <ArrowBendDownRightIcon size={12} className={`text-gray-400`} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <span className={`truncate text-sm ${isActive ? "text-gray-100" : "text-gray-200"}`}>{span.method}</span>
+            <span className={`truncate text-xs ${isActive ? "text-gray-100" : "text-gray-200"}`}>{span.method}</span>
             {isActive && (
-              <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-0.5 text-xs text-amber-100">
+              <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-100">
                 Live
               </span>
             )}
             {!isActive && (
-              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-gray-400">
+              <span className={`rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-${getColorForStatus(span.status)}-400`}>
                 {formatDuration(duration)}
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-500">{statusLabel(span.status)}</div>
+          <div className="text-[10px] text-gray-500">{statusLabel(span.status)}</div>
         </div>
       </div>
 
@@ -231,33 +234,32 @@ function TreeNode({
     <Collapsible
       defaultOpen={depth === 0}
       title={
-        <div className="flex min-w-0 items-center gap-2 text-left">
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${getSpanStatusDotClass(span.status)}`} />
-          <span className="truncate text-sm text-gray-100">{span.method}</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-gray-400">
+        <div className="flex min-w-0 items-center gap-3 text-left">
+          <span className="truncate text-xs text-gray-100">{span.method}</span>
+          <span className={`rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-${getColorForStatus(span.status)}-400`}>
             {formatDuration(duration)}
           </span>
         </div>
       }
       className="rounded-lg border border-white/5 bg-white/4"
       headerClassName="rounded-none px-3 py-2 hover:bg-white/5"
-      contentClassName="border-t border-white/5 p-3"
+      contentClassName="border-t border-white/5 p-3 pt-0"
     >
-      <SectionCard>
+      <div className="flex flex-col">
         <Row label="Status" value={statusLabel(span.status)} accent={span.status === "error" ? "red" : span.status === "success" ? "green" : "neutral"} />
         <Row label="Start" value={span.startTime.toFixed(2)} mono />
         <Row label="Duration" value={formatDuration(duration)} mono />
 
         <div className="px-3 py-2.5 border-b border-white/5 last:border-b-0">
           <div className="mb-1 text-xs text-gray-400">Arguments</div>
-          <pre className="max-h-40 overflow-x-auto rounded-md bg-black/20 p-2 text-xs text-gray-200">
+          <pre className="max-h-40 overflow-x-auto rounded-md bg-black/20 p-2 text-xs text-gray-200 scrollbar-hide">
             {span.attributes ? safeJson(span.attributes) : "No arguments"}
           </pre>
         </div>
 
         <div className="px-3 py-2.5 border-b border-white/5 last:border-b-0">
           <div className="mb-1 text-xs text-gray-400">Result</div>
-          <pre className="max-h-40 overflow-x-auto rounded-md bg-black/20 p-2 text-xs text-gray-200">
+          <pre className="max-h-40 overflow-x-auto rounded-md bg-black/20 p-2 text-xs text-gray-200 scrollbar-hide">
             {span.status === "error"
               ? safeJson(span.error ?? "No error payload")
               : span.result !== undefined
@@ -291,7 +293,7 @@ function TreeNode({
             </div>
           </div>
         ) : null}
-      </SectionCard>
+      </div>
     </Collapsible>
   );
 }
@@ -331,12 +333,11 @@ function TimelineGroup({
     <SectionCard>
       <div className="px-3 py-2.5 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${getSpanStatusDotClass(root.status)}`} />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm text-gray-100">{root.method}</div>
+            <div className="truncate text-xs text-gray-100">{root.method}</div>
             <div className="text-xs text-gray-500">{statusLabel(root.status)}</div>
           </div>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-gray-400">
+          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-gray-400">
             {formatDuration(getSpanDuration(root, now))}
           </span>
         </div>
@@ -353,8 +354,8 @@ function TimelineGroup({
                 <div className="flex items-start gap-2">
                   <TimelineEventDot active={hasPendingChild || (root.status === "pending" && index === events.length - 1)} done={hasDoneChild} />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-gray-200">{event.message}</div>
-                    <div className="text-xs text-gray-500">{formatDuration(event.time - root.startTime)}</div>
+                    <div className="text-xs text-gray-400">{event.message}</div>
+                    <div className="text-[10px] text-gray-500">{formatDuration(event.time - root.startTime)}</div>
                   </div>
                 </div>
 
@@ -373,7 +374,7 @@ function TimelineGroup({
             );
           })
         ) : (
-          <div className="text-sm text-gray-500">No events captured yet.</div>
+          <div className="text-xs text-gray-500">No events captured yet.</div>
         )}
 
         {!events.length && directChildren.length ? (
@@ -449,15 +450,15 @@ export default function TraceView({
 
   const panel = (() => {
     if (!traces.length) {
-      return <div className="rounded-lg border border-white/5 bg-white/4 px-3 py-3 text-sm text-gray-500">No trace data yet.</div>;
+      return <div className="rounded-lg border border-white/5 bg-white/4 px-3 py-3 text-xs text-gray-500">No trace data yet.</div>;
     }
 
     if (viewMode === "waterfall") {
       return (
         <div className="space-y-3">
           <div className="flex items-center gap-2 border-b border-white/5 pb-2 text-xs text-gray-500">
-            <span className="w-32 shrink-0">Span</span>
-            <span className="flex-1">{formatTimeOffset(totalDuration)}</span>
+            <span className="w-32 shrink-0 text-[10px]">Span</span>
+            <span className="flex-1 text-[10px]">{formatTimeOffset(totalDuration)}</span>
           </div>
 
           <div className="space-y-3">
@@ -499,7 +500,7 @@ export default function TraceView({
   return (
     <>
       <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-3 pb-12">
-        <div className="space-y-3 text-sm text-gray-200">
+        <div className="space-y-3 text-xs text-gray-200">
           <div className="flex rounded-lg border border-white/5 bg-white/4 p-1">
             {tabs.map((tab) => {
               const active = tab.id === viewMode;
@@ -536,7 +537,7 @@ export default function TraceView({
 
         </div>
       </div>
-      <div className="flex gap-3 sticky bottom-0 bg-bg/80 backdrop-blur-sm pt-2">
+      <div className="flex gap-3 sticky bottom-0 bg-bg/80 backdrop-blur-xs pt-2">
         <TraceViewButton success={success} proceed={proceed} loading={loading} />
       </div>
     </>

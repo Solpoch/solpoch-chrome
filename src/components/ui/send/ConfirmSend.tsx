@@ -20,7 +20,6 @@ import {
   TransactionDebuggerEngine,
   type ParsedInstructionNode,
 } from "../../../lib/utils/solana/transactionDebugger";
-// import SimulatingOverlay from "../popup/signAndSendTransaction/SimulatingOverlay";
 import StatusBadge from "../popup/signAndSendTransaction/StatusBadge";
 import SectionCard from "../popup/signAndSendTransaction/SectionCard";
 import Row from "../popup/signAndSendTransaction/Row";
@@ -36,105 +35,105 @@ import Collapsible from "../layout/Collapsible";
 import type { RpcSpan } from "../../../lib/rpc/tracer";
 import TraceView from "../traceView/TraceView";
 
-const trace: RpcSpan[] = [
-  {
-    "id": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
-    "method": "SIMULATION_FLOW",
-    "attributes": [
-      "HJwcQgAuADbCHMVL2fJHyUa7EiXgpryYEPyEkPzjJhTA",
-      100000
-    ],
-    "startTime": 17207.899999999907,
-    "status": "success",
-    "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
-    "events": [
-      {
-        "time": 17208.09999999986,
-        "message": "Building transaction"
-      },
-      {
-        "time": 17209.09999999986,
-        "message": "Fetching blockhash"
-      },
-      {
-        "time": 17296.5,
-        "message": "Signing transaction"
-      },
-      {
-        "time": 17369.299999999814,
-        "message": "Simulating transaction"
-      }
-    ],
-    "endTime": 17451,
-    "result": {
-      "err": null,
-      "logs": [
-        "Program 11111111111111111111111111111111 invoke [1]",
-        "Program 11111111111111111111111111111111 success"
-      ]
-    }
-  },
-  {
-    "id": "2fc24e54-1003-46b1-97ee-6905147ea66c",
-    "method": "getLatestBlockhash",
-    "attributes": {},
-    "startTime": 17209.399999999907,
-    "status": "success",
-    "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
-    "parentId": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
-    "endTime": 17296.199999999953,
-    "result": {
-      "blockhash": "DKY7LAUerJKKS7QcgFcrN5h6m55HqibckM9AZvcJZua4",
-      "lastValidBlockHeight": 447051729
-    }
-  },
-  {
-    "id": "8dd1bcce-9826-40b6-bf5e-70975ba7438c",
-    "method": "simulateTransaction",
-    "attributes": {},
-    "startTime": 17369.699999999953,
-    "status": "success",
-    "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
-    "parentId": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
-    "endTime": 17450.5,
-    "result": {
-      "context": {
-        "apiVersion": "4.0.0-rc.0",
-        "slot": 459185324
-      },
-      "value": {
-        "accounts": null,
-        "err": null,
-        "fee": 5000,
-        "innerInstructions": null,
-        "loadedAccountsDataSize": 206,
-        "loadedAddresses": {
-          "readonly": [],
-          "writable": []
-        },
-        "logs": [
-          "Program 11111111111111111111111111111111 invoke [1]",
-          "Program 11111111111111111111111111111111 success"
-        ],
-        "postBalances": [
-          99790000,
-          1090880,
-          1
-        ],
-        "postTokenBalances": [],
-        "preBalances": [
-          99895000,
-          990880,
-          1
-        ],
-        "preTokenBalances": [],
-        "replacementBlockhash": null,
-        "returnData": null,
-        "unitsConsumed": 150
-      }
-    }
-  }
-]
+// const trace: RpcSpan[] = [
+//   {
+//     "id": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
+//     "method": "SIMULATION_FLOW",
+//     "attributes": [
+//       "HJwcQgAuADbCHMVL2fJHyUa7EiXgpryYEPyEkPzjJhTA",
+//       100000
+//     ],
+//     "startTime": 17207.899999999907,
+//     "status": "success",
+//     "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
+//     "events": [
+//       {
+//         "time": 17208.09999999986,
+//         "message": "Building transaction"
+//       },
+//       {
+//         "time": 17209.09999999986,
+//         "message": "Fetching blockhash"
+//       },
+//       {
+//         "time": 17296.5,
+//         "message": "Signing transaction"
+//       },
+//       {
+//         "time": 17369.299999999814,
+//         "message": "Simulating transaction"
+//       }
+//     ],
+//     "endTime": 17451,
+//     "result": {
+//       "err": null,
+//       "logs": [
+//         "Program 11111111111111111111111111111111 invoke [1]",
+//         "Program 11111111111111111111111111111111 success"
+//       ]
+//     }
+//   },
+//   {
+//     "id": "2fc24e54-1003-46b1-97ee-6905147ea66c",
+//     "method": "getLatestBlockhash",
+//     "attributes": {},
+//     "startTime": 17209.399999999907,
+//     "status": "success",
+//     "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
+//     "parentId": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
+//     "endTime": 17296.199999999953,
+//     "result": {
+//       "blockhash": "DKY7LAUerJKKS7QcgFcrN5h6m55HqibckM9AZvcJZua4",
+//       "lastValidBlockHeight": 447051729
+//     }
+//   },
+//   {
+//     "id": "8dd1bcce-9826-40b6-bf5e-70975ba7438c",
+//     "method": "simulateTransaction",
+//     "attributes": {},
+//     "startTime": 17369.699999999953,
+//     "status": "success",
+//     "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
+//     "parentId": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
+//     "endTime": 17450.5,
+//     "result": {
+//       "context": {
+//         "apiVersion": "4.0.0-rc.0",
+//         "slot": 459185324
+//       },
+//       "value": {
+//         "accounts": null,
+//         "err": null,
+//         "fee": 5000,
+//         "innerInstructions": null,
+//         "loadedAccountsDataSize": 206,
+//         "loadedAddresses": {
+//           "readonly": [],
+//           "writable": []
+//         },
+//         "logs": [
+//           "Program 11111111111111111111111111111111 invoke [1]",
+//           "Program 11111111111111111111111111111111 success"
+//         ],
+//         "postBalances": [
+//           99790000,
+//           1090880,
+//           1
+//         ],
+//         "postTokenBalances": [],
+//         "preBalances": [
+//           99895000,
+//           990880,
+//           1
+//         ],
+//         "preTokenBalances": [],
+//         "replacementBlockhash": null,
+//         "returnData": null,
+//         "unitsConsumed": 150
+//       }
+//     }
+//   }
+// ]
 
 export default function ConfirmSend({
   amount,
@@ -155,7 +154,7 @@ export default function ConfirmSend({
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
   const estimatedFee = lamportsToSol(5000);
-  const [traces, setTraces] = useState<RpcSpan[]>(trace);
+  const [traces, setTraces] = useState<RpcSpan[]>([]);
   const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
 
   const parsedInstructions = useMemo(
@@ -247,29 +246,29 @@ export default function ConfirmSend({
     }
   }, [toAddress, amount, confimedWithPassword]);
 
-  // useEffect(() => {
-  //   const handler = (message: any) => {
-  //     if (message.type !== "RPC_TRACE_UPDATE") return;
+  useEffect(() => {
+    const handler = (message: any) => {
+      if (message.type !== "RPC_TRACE_UPDATE") return;
 
-  //     setTraces((prev) => {
-  //       const idx = prev.findIndex(t => t.id === message.payload.id);
+      setTraces((prev) => {
+        const idx = prev.findIndex(t => t.id === message.payload.id);
 
-  //       if (idx !== -1) {
-  //         const next = [...prev];
-  //         next[idx] = message.payload;
-  //         return next;
-  //       }
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = message.payload;
+          return next;
+        }
 
-  //       return [...prev, message.payload];
-  //     });
-  //   };
+        return [...prev, message.payload];
+      });
+    };
 
-  //   chrome.runtime.onMessage.addListener(handler);
+    chrome.runtime.onMessage.addListener(handler);
 
-  //   return () => {
-  //     chrome.runtime.onMessage.removeListener(handler);
-  //   };
-  // }, []);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handler);
+    };
+  }, []);
 
   const handleSend = async () => {
     setCanSend(false);
@@ -324,21 +323,17 @@ export default function ConfirmSend({
   })
 
   // ── Password gate ──────────────────────────────────────────────────────────
-  // if (!confimedWithPassword) {
-  //   return (
-  //     <ConfirmWithPassword
-  //       password={password}
-  //       setPassword={setPassword}
-  //       setConfimedWithPassword={setConfimedWithPassword}
-  //     />
-  //   );
-  // }
+  if (!confimedWithPassword) {
+    return (
+      <ConfirmWithPassword
+        password={password}
+        setPassword={setPassword}
+        setConfimedWithPassword={setConfimedWithPassword}
+      />
+    );
+  }
 
   // ── Simulating overlay ─────────────────────────────────────────────────────
-  // if (simulating) {
-  //   return <SimulatingOverlay />;
-  // }
-
   if (simulating || !viewSimulationDetails) {
     return <TraceView traces={traces} success={simErr ? false : true} proceed={() => setViewSimulationDetails(true)} loading={simulating} />
   }
