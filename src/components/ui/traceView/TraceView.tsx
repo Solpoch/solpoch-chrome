@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { RpcSpan } from "../../../lib/rpc/tracer";
 import Collapsible from "../layout/Collapsible";
@@ -94,6 +94,40 @@ function TraceViewButton({
     >
       {loading ? "Processing..." : success ? "Proceed Next" : "An error occurred"}
       {!loading && <ArrowRightIcon size={14} />}
+    </button>
+  );
+}
+
+const KEEP_VIEWING_DURATION_MS = 5000;
+
+function formatKeepViewingCountdown(durationMs: number) {
+  const seconds = Math.max(durationMs, 0) / 1000;
+  return seconds.toFixed(2).replace(".", ":");
+}
+
+function KeepViewingButton({
+  loading,
+  remainingMs,
+  onClick,
+}: {
+  loading: boolean;
+  remainingMs: number;
+  onClick: () => void;
+}) {
+  const progress = Math.min(Math.max(remainingMs / KEEP_VIEWING_DURATION_MS, 0), 1);
+
+  return (
+    <button
+      type="button"
+      disabled={loading}
+      onClick={onClick}
+      className="relative flex items-center justify-center gap-2 overflow-hidden rounded-full border border-white/10 bg-primary/30 px-4 py-2.5 text-xs font-medium text-white transition-all disabled:cursor-not-allowed disabled:opacity-40 w-full"
+    >
+      <span
+        className="absolute left-0 top-0 h-full bg-primary transition-[width] duration-75"
+        style={{ width: `${progress * 100}%` }}
+      />
+      <span className="relative z-10">Keep viewing ({formatKeepViewingCountdown(remainingMs)})</span>
     </button>
   );
 }
@@ -412,11 +446,53 @@ export default function TraceView({
   loading: boolean;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("waterfall");
+  const [showKeepViewing, setShowKeepViewing] = useState(true);
+  const [remainingMs, setRemainingMs] = useState(KEEP_VIEWING_DURATION_MS);
+  const timerIdRef = useRef<number | null>(null);
+  const timerStartRef = useRef(0);
   useEffect(() => {
     if (traces.length) {
       console.log(traces);
     }
   }, [traces]);
+
+  useEffect(() => {
+    if (timerIdRef.current !== null) {
+      window.clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
+    }
+
+    if (loading) {
+      setShowKeepViewing(true);
+      setRemainingMs(KEEP_VIEWING_DURATION_MS);
+      return;
+    }
+
+    if (!showKeepViewing) {
+      setRemainingMs(KEEP_VIEWING_DURATION_MS);
+      return;
+    }
+
+    timerStartRef.current = performance.now();
+    timerIdRef.current = window.setInterval(() => {
+      const elapsed = performance.now() - timerStartRef.current;
+      const nextRemaining = Math.max(KEEP_VIEWING_DURATION_MS - elapsed, 0);
+      setRemainingMs(nextRemaining);
+
+      if (nextRemaining <= 0 && timerIdRef.current !== null) {
+        window.clearInterval(timerIdRef.current);
+        timerIdRef.current = null;
+        proceed();
+      }
+    }, 50);
+
+    return () => {
+      if (timerIdRef.current !== null) {
+        window.clearInterval(timerIdRef.current);
+        timerIdRef.current = null;
+      }
+    };
+  }, [loading, proceed, showKeepViewing]);
 
   const now = performance.now();
 
@@ -543,7 +619,17 @@ export default function TraceView({
         </div>
       </div>
       <div className="flex gap-3 sticky bottom-0 bg-bg/80 backdrop-blur-xs pt-2">
-        <TraceViewButton success={success} proceed={proceed} loading={loading} />
+        {showKeepViewing ? (
+          <KeepViewingButton
+            loading={loading}
+            remainingMs={remainingMs}
+            onClick={() => {
+              setShowKeepViewing(false);
+            }}
+          />
+        ) : (
+          <TraceViewButton success={success} proceed={proceed} loading={loading} />
+        )}
       </div>
     </>
   );
