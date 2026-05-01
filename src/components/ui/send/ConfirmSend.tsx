@@ -335,6 +335,7 @@ export default function ConfirmSend({
 
   // ── Simulating overlay ─────────────────────────────────────────────────────
   if (simulating || !viewSimulationDetails) {
+    console.log("rendering trace view", simulating, viewSimulationDetails);
     return <TraceView traces={traces} success={simErr ? false : true} proceed={() => setViewSimulationDetails(true)} loading={simulating} />
   }
 

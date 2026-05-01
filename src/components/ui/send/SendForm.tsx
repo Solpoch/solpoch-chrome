@@ -54,7 +54,7 @@ export default function SendForm({
           </button>
           {
             isDropdownOpen && (
-              <div className="flex flex-col shadow border-0.5 border-white/5 absolute top-9 left-0 w-full mt-1 rounded bg-white/5 backdrop-blur-xs z-10 max-h-45 overflow-y-auto">
+              <div className="flex flex-col shadow border-0.5 border-white/5 absolute top-7 left-0 w-full mt-1 rounded bg-white/5 backdrop-blur-xs z-10 max-h-45 overflow-y-auto">
                 {
                   accountBook.map((item, index) => (
                     <div
