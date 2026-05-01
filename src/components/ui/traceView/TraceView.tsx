@@ -92,7 +92,7 @@ function TraceViewButton({
         }`}
       disabled={loading}
     >
-      {loading ? "Processing..." : success ? "Proceed Next" : "An error occurred"}
+      {loading ? "Processing..." : success ? "Proceed Next" : "View Error Details"}
       {!loading && <ArrowRightIcon size={14} />}
     </button>
   );
@@ -539,7 +539,7 @@ export default function TraceView({
         <div className="space-y-3">
           <div className="flex items-center gap-2 border-b border-white/5 pb-2 text-xs text-gray-500">
             <span className="w-32 shrink-0 text-[10px]">Span</span>
-            <span className="flex-1 text-[10px]">{formatTimeOffset(totalDuration)}</span>
+            <span className="flex-1 text-[10px] border-l pl-2 border-l-white/5">Duration</span>
           </div>
 
           <div className="space-y-3">
@@ -581,6 +581,28 @@ export default function TraceView({
   return (
     <>
       <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-3 pb-12">
+        <div className="flex justify-between items-center gap-2">
+          <div>
+            <div className="text-xs font-medium text-gray-300">Execution Trace</div>
+            <div className="text-[10px] text-gray-500">
+              {traces.length} span{traces.length !== 1 ? "s" : ""}, total duration {formatDuration(totalDuration)}
+            </div>
+          </div>
+          {/* // success badge */}
+          {success ? (
+            <span className="rounded-full border border-green-500/30 bg-green-500/20 px-2 py-0.5 text-[10px] text-green-400">
+              Success
+            </span>
+          ) : loading ? (
+            <span className="rounded-full border border-blue-500/30 bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-400">
+              Processing
+            </span>
+          ) : (
+            <span className="rounded-full border border-rose-500/30 bg-rose-500/20 px-2 py-0.5 text-[10px] text-rose-400">
+              Error
+            </span>
+          )}
+        </div>
         <div className="space-y-3 text-xs text-gray-200">
           <div className="flex rounded-lg border border-white/5 bg-white/4 p-1">
             {tabs.map((tab) => {
