@@ -38,7 +38,7 @@ export abstract class TransactionService {
       parentId: rootSpan.id,
     };
 
-    RpcTracer.addEvent(rootSpan.id, "Building transaction");
+    RpcTracer.addEvent(rootSpan.id, "Vault:Building transaction");
     const { tx, publicKey } = await this.buildTransaction(to, amount);
 
     RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
@@ -46,13 +46,18 @@ export abstract class TransactionService {
     tx.recentBlockhash = blockhash
     tx.feePayer = new PublicKey(publicKey)
 
-    RpcTracer.addEvent(rootSpan.id, "Signing transaction");
+    RpcTracer.addEvent(rootSpan.id, "Vault:Signing transaction");
     const signedTx = await this.signTransaction(tx, password)
     const config: SimulateTransactionConfig = { commitment: "confirmed" }
     RpcTracer.addEvent(rootSpan.id, "Simulating transaction");
     const simulation = await RpcService.simulateTransaction(signedTx, config, ctx);
 
-    RpcTracer.success(rootSpan.id, shapeResult("simulateTransaction", simulation));
+    if (simulation.value.err) {
+      RpcTracer.error(rootSpan.id, shapeResult("simulateTransaction", simulation));
+    } else {
+      RpcTracer.success(rootSpan.id, shapeResult("simulateTransaction", simulation));
+    }
+
     console.log("Simulation result:", simulation);
     return {
       success: true,
@@ -65,21 +70,33 @@ export abstract class TransactionService {
     amount: number,
     password: string
   ): Promise<MessageResponse<"SIGN_AND_SEND_TRANSACTION">> {
+    const rootSpan = RpcTracer.start("SEND_TRANSACTION_FLOW", [to, amount]);
+    const ctx = {
+      traceId: rootSpan.traceId,
+      parentId: rootSpan.id,
+    };
+
+    RpcTracer.addEvent(rootSpan.id, "Vault:Building transaction");
     const { tx, publicKey } = await this.buildTransaction(to, amount)
 
-    const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash()
+    RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
+    const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash(ctx);
     tx.recentBlockhash = blockhash
     tx.feePayer = new PublicKey(publicKey)
 
+    RpcTracer.addEvent(rootSpan.id, "Vault:Signing transaction");
     const signedTx = await this.signTransaction(tx, password)
-    const signature = await RpcService.sendRawTransaction(signedTx)
+    RpcTracer.addEvent(rootSpan.id, "Sending transaction");
+    const signature = await RpcService.sendRawTransaction(signedTx, ctx)
 
+    RpcTracer.addEvent(rootSpan.id, "Polling for confirmation");
     const confirmed = await this.pollForConfirmation(
       signature,
       lastValidBlockHeight
     )
 
     if (!confirmed.success) {
+      RpcTracer.error(rootSpan.id, shapeResult("sendRawTransaction", signature));
       console.error("Transaction failed or expired", confirmed.error);
       return {
         success: false,
@@ -87,6 +104,7 @@ export abstract class TransactionService {
         error: confirmed.error ?? "Transaction confirmation failed",
       }
     } else {
+      RpcTracer.success(rootSpan.id, shapeResult("sendRawTransaction", signature));
       console.log("Transaction confirmed", signature);
       return {
         success: true,
@@ -108,12 +126,20 @@ export abstract class TransactionService {
     lastValidBlockHeight: number,
     intervalMs = 2000
   ): Promise<{ success: boolean; error?: string }> {
+    const rootSpan = RpcTracer.start("POLL_CONFIRMATION_FLOW", [signature, lastValidBlockHeight]);
+    const ctx = {
+      traceId: rootSpan.traceId,
+      parentId: rootSpan.id,
+    };
+
     while (true) {
-      const { value } = await RpcService.getSignatureStatuses([signature]);
+      RpcTracer.addEvent(rootSpan.id, "Polling getSignatureStatuses");
+      const { value } = await RpcService.getSignatureStatuses([signature], ctx);
       const status = value?.[0];
 
       if (status) {
         if (status.err) {
+          RpcTracer.error(rootSpan.id, shapeResult("getSignatureStatuses", signature));
           return { success: false, error: JSON.stringify(status.err) };
         }
         // Consider "confirmed" or "finalized" as success
@@ -121,13 +147,16 @@ export abstract class TransactionService {
           status.confirmationStatus === "confirmed" ||
           status.confirmationStatus === "finalized"
         ) {
+          RpcTracer.success(rootSpan.id, shapeResult("getSignatureStatuses", signature));
           return { success: true };
         }
       }
 
       // Check if the blockhash has expired
-      const blockHeight = await RpcService.getBlockHeight();
+      RpcTracer.addEvent(rootSpan.id, "Checking block height for expiration");
+      const blockHeight = await RpcService.getBlockHeight(ctx);
       if (blockHeight > lastValidBlockHeight) {
+        RpcTracer.error(rootSpan.id, "Transaction expired: block height exceeded lastValidBlockHeight");
         return {
           success: false,
           error: "Transaction expired: block height exceeded lastValidBlockHeight",
@@ -138,6 +167,8 @@ export abstract class TransactionService {
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
   }
+
+  // --- Wallet Standard methods ---
 
   static async signAndSendTransaction(tx: number[], password: string): Promise<string> {
     const transaction = Transaction.from(tx);
@@ -235,6 +266,8 @@ export abstract class TransactionService {
       throw new Error(`Sign in failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+
+  // --- Token transfer methods ---
 
   static async simulateTransferTokens(
     mint: string,

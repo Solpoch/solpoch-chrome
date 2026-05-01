@@ -50,7 +50,7 @@ export class RpcService {
 
   static async getBalance(publicKey: string, parentCtx?: TraceContext): Promise<number> {
     return this.traceCall(
-      "getBalance",
+      "RPC:getBalance",
       { publicKey },
       async () => {
         const connection = this.getConnection();
@@ -61,21 +61,12 @@ export class RpcService {
     );
   }
 
-  // static async getLatestBlockhash(): Promise<Readonly<{
-  //   blockhash: Blockhash;
-  //   lastValidBlockHeight: number;
-  // }>> {
-  //   const connection = this.getConnection();
-  //   const latestBlockHash = await connection.getLatestBlockhash();
-  //   return latestBlockHash;
-  // }
-
   static async getLatestBlockhash(parentCtx?: TraceContext): Promise<Readonly<{
     blockhash: Blockhash;
     lastValidBlockHeight: number;
   }>> {
     return this.traceCall(
-      "getLatestBlockhash",
+      "RPC:getLatestBlockhash",
       {},
       async () => {
         const connection = this.getConnection();
@@ -86,26 +77,32 @@ export class RpcService {
     );
   }
 
-  static async sendRawTransaction(signedTx: Transaction): Promise<TransactionSignature> {
-    const connection = this.getConnection();
-    const signature = await connection.sendRawTransaction(
-      signedTx.serialize(),
-      { maxRetries: 3 }
+  static async sendRawTransaction(signedTx: Transaction, parentCtx?: TraceContext): Promise<TransactionSignature> {
+    return this.traceCall(
+      "RPC:sendRawTransaction",
+      { signedTx: "redacted" },
+      async () => {
+        const connection = this.getConnection();
+        const signature = await connection.sendRawTransaction(
+          signedTx.serialize(),
+          { maxRetries: 3 }
+        );
+        return signature;
+      },
+      parentCtx
     );
-    return signature;
   }
-
-  // static async simulateTransaction(signedTx: Transaction, config: SimulateTransactionConfig, ctx: TraceContext): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
-  //   const connection = this.getConnection();
-  //   const versionedTx = new VersionedTransaction(signedTx.compileMessage());
-  //   const simulation = await connection.simulateTransaction(versionedTx, config);
-  //   return simulation;
-  // }
 
   static async simulateTransaction(signedTx: Transaction, config: SimulateTransactionConfig, parentCtx?: TraceContext): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
     return this.traceCall(
-      "simulateTransaction",
-      {},
+      "RPC:simulateTransaction",
+      {
+        signedTx: "redacted",
+        config: {
+          sigVerify: config.sigVerify,
+          replaceRecentBlockhash: config.replaceRecentBlockhash,
+        }
+      },
       async () => {
         const connection = this.getConnection();
         const versionedTx = new VersionedTransaction(signedTx.compileMessage());
@@ -116,16 +113,30 @@ export class RpcService {
     );
   }
 
-  static async getBlockHeight(): Promise<number> {
-    const connection = this.getConnection();
-    const blockHeight = await connection.getBlockHeight();
-    return blockHeight;
+  static async getBlockHeight(parentCtx?: TraceContext): Promise<number> {
+    return this.traceCall(
+      "RPC:getBlockHeight",
+      {},
+      async () => {
+        const connection = this.getConnection();
+        const blockHeight = await connection.getBlockHeight();
+        return blockHeight;
+      },
+      parentCtx
+    );
   }
 
-  static async getSignatureStatuses(signatures: string[]): Promise<RpcResponseAndContext<(SignatureStatus | null)[]>> {
-    const connection = this.getConnection();
-    const statuses = await connection.getSignatureStatuses(signatures);
-    return statuses;
+  static async getSignatureStatuses(signatures: string[], parentCtx?: TraceContext): Promise<RpcResponseAndContext<(SignatureStatus | null)[]>> {
+    return this.traceCall(
+      "RPC:getSignatureStatuses",
+      { signatures },
+      async () => {
+        const connection = this.getConnection();
+        const statuses = await connection.getSignatureStatuses(signatures);
+        return statuses;
+      },
+      parentCtx
+    );
   }
 
   static async getAssociatedTokenAccountInfo(publicKey: string, mintAddress: string) {
