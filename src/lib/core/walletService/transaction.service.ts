@@ -312,22 +312,28 @@ export abstract class TransactionService {
     password: string
   ) {
     const rootSpan = RpcTracer.start("TOKEN : simulateTransferTokens", { mint, destination, amount, password: "****" });
+    const ctx = {
+      traceId: rootSpan.traceId,
+      parentId: rootSpan.id,
+    };
     try {
-      const connection = RpcService.getConnection();
       const activeAccount = await vaultService.getActiveAccount();
 
       const mintPubkey = new PublicKey(mint);
 
+      RpcTracer.addEvent(rootSpan.id, "SPL: getAssociatedTokenAddressSync");
       const myTokenAccount = getAssociatedTokenAddressSync(
         mintPubkey,
         new PublicKey(activeAccount.pubkey)
       );
 
+      RpcTracer.addEvent(rootSpan.id, "SPL: getAssociatedTokenAddressSync");
       const destinationTokenAccount = getAssociatedTokenAddressSync(
         mintPubkey,
         new PublicKey(destination)
       );
 
+      RpcTracer.addEvent(rootSpan.id, "SPL: createTransferInstruction");
       const ix = createTransferInstruction(
         myTokenAccount,
         destinationTokenAccount,
@@ -335,8 +341,10 @@ export abstract class TransactionService {
         amount
       );
       const tx = new Transaction().add(ix);
+      RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
+      const { blockhash } = await RpcService.getLatestBlockhash(ctx);
       tx.feePayer = new PublicKey(activeAccount.pubkey);
-      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      tx.recentBlockhash = blockhash;
 
       RpcTracer.addEvent(rootSpan.id, "VAULT : Signing transaction");
       const signedTx = await this.signTransaction(tx, password);
@@ -359,6 +367,10 @@ export abstract class TransactionService {
     password: string
   ) {
     const rootSpan = RpcTracer.start("TOKEN : transferTokens", { mint, destination, amount, password: "****" });
+    const ctx = {
+      traceId: rootSpan.traceId,
+      parentId: rootSpan.id,
+    };
     try {
       const activeAccount = await vaultService.getActiveAccount();
       RpcTracer.addEvent(rootSpan.id, "Fetching or creating source token account");
@@ -380,7 +392,9 @@ export abstract class TransactionService {
       const dest = destinationTokenAccount.address;
       const ownerPublicKey = new PublicKey(activeAccount.pubkey);
       const programId = TOKEN_PROGRAM_ID;
-      const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash()
+      RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
+      const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash(ctx);
+      RpcTracer.addEvent(rootSpan.id, "SPL: createTransferInstruction");
       const transaction = new Transaction().add(
         createTransferInstruction(source, dest, ownerPublicKey, amount, [], programId),
       );
@@ -390,7 +404,7 @@ export abstract class TransactionService {
       RpcTracer.addEvent(rootSpan.id, "VAULT : Signing transaction");
       const signedTx = await this.signTransaction(transaction, password);
       RpcTracer.addEvent(rootSpan.id, "Sending transaction");
-      const signature = await RpcService.sendRawTransaction(signedTx);
+      const signature = await RpcService.sendRawTransaction(signedTx, ctx);
       RpcTracer.addEvent(rootSpan.id, "Polling for confirmation");
       const confirmed = await this.pollForConfirmation(
         signature,
@@ -422,10 +436,16 @@ export abstract class TransactionService {
 
   static async getOrCreateAssociatedTokenAccount(payer: PublicKey, mint: PublicKey, owner: PublicKey, password: string, commitment?: Commitment): Promise<Account> {
     const rootSpan = RpcTracer.start("TOKEN : getOrCreateAssociatedTokenAccount", { payer: payer.toBase58(), mint: mint.toBase58(), owner: owner.toBase58() });
+    const ctx = {
+      traceId: rootSpan.traceId,
+      parentId: rootSpan.id,
+    };
+
     const programId = TOKEN_PROGRAM_ID;
     const associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID;
     const allowOwnerOffCurve = false;
     const connection = RpcService.getConnection();
+    RpcTracer.addEvent(rootSpan.id, "SPL: getAssociatedTokenAddressSync");
     const associatedToken = getAssociatedTokenAddressSync(
       mint,
       owner,
@@ -436,12 +456,12 @@ export abstract class TransactionService {
 
     let account: Account;
     try {
-      RpcTracer.addEvent(rootSpan.id, "Fetching associated token account");
+      RpcTracer.addEvent(rootSpan.id, "SPL: getAccount");
       account = await getAccount(connection, associatedToken, commitment, programId);
     } catch (error: unknown) {
       if (error instanceof TokenAccountNotFoundError || error instanceof TokenInvalidAccountOwnerError) {
         try {
-          RpcTracer.addEvent(rootSpan.id, "Creating associated token account");
+          RpcTracer.addEvent(rootSpan.id, "SPL: createAssociatedTokenAccountInstruction");
           const transaction = new Transaction().add(
             createAssociatedTokenAccountInstruction(
               payer,
@@ -453,14 +473,15 @@ export abstract class TransactionService {
             ),
           );
 
-          const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash()
+          RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
+          const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash(ctx);
           transaction.recentBlockhash = blockhash
           transaction.feePayer = new PublicKey(payer)
 
           RpcTracer.addEvent(rootSpan.id, "VAULT : Signing transaction");
           const signedTx = await this.signTransaction(transaction, password)
           RpcTracer.addEvent(rootSpan.id, "Sending transaction");
-          const signature = await RpcService.sendRawTransaction(signedTx)
+          const signature = await RpcService.sendRawTransaction(signedTx, ctx)
 
           RpcTracer.addEvent(rootSpan.id, "Polling for confirmation");
           await this.pollForConfirmation(
@@ -472,7 +493,7 @@ export abstract class TransactionService {
           console.error("Failed to create associated token account:", error);
         }
 
-        RpcTracer.addEvent(rootSpan.id, "Re-fetching associated token account");
+        RpcTracer.addEvent(rootSpan.id, "SPL: getAccount");
         account = await getAccount(connection, associatedToken, commitment, programId);
       } else {
         RpcTracer.error(rootSpan.id, String(error));
