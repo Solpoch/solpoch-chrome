@@ -173,7 +173,6 @@ export default function ConfirmSendSplToken({
         setSimulationResult(response);
         setCanSend(!response?.err || canProceedWithAtaCreation(response));
       } catch (error) {
-        console.error("Simulation error:", error);
         setSimulationResult({
           err: error!,
           logs: [],
@@ -190,7 +189,6 @@ export default function ConfirmSendSplToken({
   }, [toAddress, amount, confimedWithPassword]);
 
   useEffect(() => {
-    console.log("Subscribing to trace updates");
     const handler = (message: any) => {
       if (message.type !== "RPC_TRACE_UPDATE") return;
 
@@ -205,7 +203,6 @@ export default function ConfirmSendSplToken({
 
         return [...prev, message.payload];
       });
-      console.log("Received trace update:", message.payload);
     };
 
     chrome.runtime.onMessage.addListener(handler);
@@ -214,10 +211,6 @@ export default function ConfirmSendSplToken({
       chrome.runtime.onMessage.removeListener(handler);
     };
   }, []);
-
-  useEffect(() => {
-    console.log("Traces updated:", traces);
-  }, [traces]);
 
   const handleSend = async () => {
     if (!mintAddressBase58 || !toAddress || !amount || !password) {
@@ -574,9 +567,11 @@ export default function ConfirmSendSplToken({
             contentClassName="mt-2"
           >
             <div className="mt-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 max-h-32 overflow-y-auto scrollbar-hide">
-              <p className="text-xs font-mono text-red-400 leading-5 break-all">
-                {JSON.stringify(simErr)}
-              </p>
+              <pre className="text-xs font-mono text-red-400 leading-5 whitespace-pre-wrap wrap-break-word">
+                {String(
+                  typeof simErr === "string" ? simErr : JSON.stringify(simErr, null, 2)
+                ).replace(/\\n/g, "\n")}
+              </pre>
             </div>
           </Collapsible>
         )}

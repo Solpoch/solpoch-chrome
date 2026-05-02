@@ -53,9 +53,9 @@ export abstract class TransactionService {
     const simulation = await RpcService.simulateTransaction(signedTx, config, ctx);
 
     if (simulation.value.err) {
-      RpcTracer.error(rootSpan.id, shapeResult("simulateTransaction", simulation));
+      RpcTracer.error(rootSpan.id, simulation);
     } else {
-      RpcTracer.success(rootSpan.id, shapeResult("simulateTransaction", simulation));
+      RpcTracer.success(rootSpan.id, simulation);
     }
 
     console.log("Simulation result:", simulation);
@@ -96,7 +96,7 @@ export abstract class TransactionService {
     )
 
     if (!confirmed.success) {
-      RpcTracer.error(rootSpan.id, shapeResult("sendRawTransaction", signature));
+      RpcTracer.error(rootSpan.id, { signature, error: confirmed.error });
       console.error("Transaction failed or expired", confirmed.error);
       return {
         success: false,
@@ -104,7 +104,7 @@ export abstract class TransactionService {
         error: confirmed.error ?? "Transaction confirmation failed",
       }
     } else {
-      RpcTracer.success(rootSpan.id, shapeResult("sendRawTransaction", signature));
+      RpcTracer.success(rootSpan.id, { signature });
       console.log("Transaction confirmed", signature);
       return {
         success: true,
@@ -139,7 +139,7 @@ export abstract class TransactionService {
 
       if (status) {
         if (status.err) {
-          RpcTracer.error(rootSpan.id, shapeResult("getSignatureStatuses", signature));
+          RpcTracer.error(rootSpan.id, { signature, error: status.err });
           return { success: false, error: JSON.stringify(status.err) };
         }
         // Consider "confirmed" or "finalized" as success
@@ -147,7 +147,7 @@ export abstract class TransactionService {
           status.confirmationStatus === "confirmed" ||
           status.confirmationStatus === "finalized"
         ) {
-          RpcTracer.success(rootSpan.id, shapeResult("getSignatureStatuses", signature));
+          RpcTracer.success(rootSpan.id, { signature });
           return { success: true };
         }
       }
@@ -182,13 +182,13 @@ export abstract class TransactionService {
     const signedTx = await this.signTransaction(transaction, password);
     RpcTracer.addEvent(rootSpan.id, "Sending Raw transaction");
     const signature = await RpcService.sendRawTransaction(signedTx, ctx);
-    RpcTracer.success(rootSpan.id, shapeResult("sendRawTransaction", signature));
+    RpcTracer.success(rootSpan.id, { signature });
     return signature;
   }
 
   static async simulateTransactionUsingTransaction(tx: number[], password: string): Promise<MessageResponse<"SIMULATE_USING_TRANSACTION">> {
+    const rootSpan = RpcTracer.start("SIMULATE_TRANSACTION_FLOW", { tx, password: "****" });
     try {
-      const rootSpan = RpcTracer.start("SIMULATE_TRANSACTION_FLOW", { tx, password: "****" });
       const ctx = {
         traceId: rootSpan.traceId,
         parentId: rootSpan.id,
@@ -200,13 +200,15 @@ export abstract class TransactionService {
       RpcTracer.addEvent(rootSpan.id, "Simulating transaction");
       const simulation = await RpcService.simulateTransaction(signedTx, config, ctx);
 
-      RpcTracer.success(rootSpan.id, shapeResult("simulateTransaction", shapeResult("simulateTransaction", simulation)));
+      RpcTracer.success(rootSpan.id, simulation);
       console.log("Simulation result:", simulation)
       return {
         success: true,
         data: simulation.value,
       }
     } catch (error) {
+      RpcTracer.error(rootSpan.id, error);
+      console.error("Simulation failed transaction.service:", error);
       throw new Error(`Simulation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -341,10 +343,10 @@ export abstract class TransactionService {
       const txArray = signedTx.serialize();
       RpcTracer.addEvent(rootSpan.id, "Simulating transaction");
       const sim = await this.simulateTransactionUsingTransaction(Array.from(txArray), password);
-      RpcTracer.success(rootSpan.id, shapeResult("simulateTransaction", { value: sim.data }));
+      RpcTracer.success(rootSpan.id, sim);
       return sim;
     } catch (error) {
-      RpcTracer.error(rootSpan.id, String(error));
+      RpcTracer.error(rootSpan.id, error);
       console.error("Simulate transfer tokens failed:", error);
       throw new Error(`Simulate transfer tokens failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -396,7 +398,7 @@ export abstract class TransactionService {
       )
 
       if (!confirmed.success) {
-        RpcTracer.error(rootSpan.id, shapeResult("sendRawTransaction", signature));
+        RpcTracer.error(rootSpan.id, { signature, error: confirmed.error });
         console.error("Transaction failed or expired", confirmed.error);
         return {
           success: false,
@@ -404,7 +406,7 @@ export abstract class TransactionService {
           error: confirmed.error ?? "Transaction confirmation failed",
         }
       } else {
-        RpcTracer.success(rootSpan.id, shapeResult("sendRawTransaction", signature));
+        RpcTracer.success(rootSpan.id, { signature });
         console.log("Transaction confirmed", signature);
         return {
           success: true,
@@ -485,23 +487,4 @@ export abstract class TransactionService {
     return account;
   }
 
-}
-
-function shapeResult(method: string, result: any) {
-  switch (method) {
-    case "getBalance":
-      return { balance: result };
-
-    case "sendRawTransaction":
-      return { signature: result };
-
-    case "simulateTransaction":
-      return {
-        err: result.value.err,
-        logs: result.value.logs?.slice(0, 10),
-      };
-
-    default:
-      return { ok: true };
-  }
 }
