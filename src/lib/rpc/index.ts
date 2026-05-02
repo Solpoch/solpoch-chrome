@@ -1,5 +1,5 @@
-import { Connection, PublicKey, Transaction, VersionedTransaction, type Blockhash, type RpcResponseAndContext, type SignatureStatus, type SimulatedTransactionResponse, type SimulateTransactionConfig, type TransactionSignature } from "@solana/web3.js";
-import { getMint, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Connection, PublicKey, Transaction, VersionedTransaction, type Blockhash, type Commitment, type RpcResponseAndContext, type SignatureStatus, type SimulatedTransactionResponse, type SimulateTransactionConfig, type TransactionSignature } from "@solana/web3.js";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, getAssociatedTokenAddressSync, getMint, TOKEN_PROGRAM_ID, type Account } from "@solana/spl-token";
 import {
   MPL_TOKEN_METADATA_PROGRAM_ID,
   deserializeMetadata,
@@ -158,6 +158,110 @@ export class RpcService {
       decimals: info.tokenAmount.decimals,
       tokenAccount: tokenAccounts.value[0].pubkey.toBase58(),
     };
+  }
+
+  static async getAssociatedTokenAddress(
+    mint: PublicKey,
+    owner: PublicKey,
+    allowOwnerOffCurve = false,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
+    parentCtx?: TraceContext
+  ): Promise<PublicKey> {
+    return this.traceCall(
+      "SPL : getAssociatedTokenAddress",
+      {
+        mint: mint.toBase58(),
+        owner: owner.toBase58(),
+        allowOwnerOffCurve,
+      },
+      async () =>
+        getAssociatedTokenAddressSync(
+          mint,
+          owner,
+          allowOwnerOffCurve,
+          programId,
+          associatedTokenProgramId
+        ),
+      parentCtx
+    );
+  }
+
+  static async getAccount(
+    address: PublicKey,
+    commitment?: Commitment,
+    programId = TOKEN_PROGRAM_ID,
+    parentCtx?: TraceContext
+  ): Promise<Account> {
+    return this.traceCall(
+      "SPL : getAccount",
+      { address: address.toBase58() },
+      async () => {
+        const connection = this.getConnection();
+        return getAccount(connection, address, commitment, programId);
+      },
+      parentCtx
+    );
+  }
+
+  static async createAssociatedTokenAccountInstruction(
+    payer: PublicKey,
+    associatedToken: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
+    parentCtx?: TraceContext
+  ) {
+    return this.traceCall(
+      "SPL : createAssociatedTokenAccountInstruction",
+      {
+        payer: payer.toBase58(),
+        associatedToken: associatedToken.toBase58(),
+        owner: owner.toBase58(),
+        mint: mint.toBase58(),
+      },
+      async () =>
+        createAssociatedTokenAccountInstruction(
+          payer,
+          associatedToken,
+          owner,
+          mint,
+          programId,
+          associatedTokenProgramId
+        ),
+      parentCtx
+    );
+  }
+
+  static async createTransferInstruction(
+    source: PublicKey,
+    destination: PublicKey,
+    owner: PublicKey,
+    amount: number | bigint,
+    multiSigners: PublicKey[] = [],
+    programId = TOKEN_PROGRAM_ID,
+    parentCtx?: TraceContext
+  ) {
+    return this.traceCall(
+      "SPL : createTransferInstruction",
+      {
+        source: source.toBase58(),
+        destination: destination.toBase58(),
+        owner: owner.toBase58(),
+        amount: amount.toString(),
+      },
+      async () =>
+        createTransferInstruction(
+          source,
+          destination,
+          owner,
+          amount,
+          multiSigners,
+          programId
+        ),
+      parentCtx
+    );
   }
 
   static async getMintTokenInfo(mintAddress: string) {

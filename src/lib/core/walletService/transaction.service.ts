@@ -4,7 +4,7 @@ import type { MessageResponse } from "../../../types/message"
 import { RpcService } from "../../rpc"
 import bs58 from "bs58";
 import { chains, features } from "../../utils/solana/walletFeatures";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, TokenAccountNotFoundError, TokenInvalidAccountOwnerError, TokenInvalidMintError, TokenInvalidOwnerError, type Account } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, TokenAccountNotFoundError, TokenInvalidAccountOwnerError, TokenInvalidMintError, TokenInvalidOwnerError, type Account } from "@solana/spl-token";
 import { RpcTracer } from "../../rpc/tracer";
 
 export abstract class TransactionService {
@@ -321,24 +321,35 @@ export abstract class TransactionService {
 
       const mintPubkey = new PublicKey(mint);
 
-      RpcTracer.addEvent(rootSpan.id, "SPL: getAssociatedTokenAddressSync");
-      const myTokenAccount = getAssociatedTokenAddressSync(
+      RpcTracer.addEvent(rootSpan.id, "Get ATA for source ");
+      const myTokenAccount = await RpcService.getAssociatedTokenAddress(
         mintPubkey,
-        new PublicKey(activeAccount.pubkey)
+        new PublicKey(activeAccount.pubkey),
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        ctx
       );
 
-      RpcTracer.addEvent(rootSpan.id, "SPL: getAssociatedTokenAddressSync");
-      const destinationTokenAccount = getAssociatedTokenAddressSync(
+      RpcTracer.addEvent(rootSpan.id, "Get ATA for destination");
+      const destinationTokenAccount = await RpcService.getAssociatedTokenAddress(
         mintPubkey,
-        new PublicKey(destination)
+        new PublicKey(destination),
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+        ctx
       );
 
-      RpcTracer.addEvent(rootSpan.id, "SPL: createTransferInstruction");
-      const ix = createTransferInstruction(
+      RpcTracer.addEvent(rootSpan.id, "Creating transfer instruction");
+      const ix = await RpcService.createTransferInstruction(
         myTokenAccount,
         destinationTokenAccount,
         new PublicKey(activeAccount.pubkey),
-        amount
+        amount,
+        [],
+        TOKEN_PROGRAM_ID,
+        ctx
       );
       const tx = new Transaction().add(ix);
       RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
@@ -349,7 +360,7 @@ export abstract class TransactionService {
       RpcTracer.addEvent(rootSpan.id, "VAULT : Signing transaction");
       const signedTx = await this.signTransaction(tx, password);
       const txArray = signedTx.serialize();
-      RpcTracer.addEvent(rootSpan.id, "Simulating transaction");
+      RpcTracer.addEvent(rootSpan.id, "Simulating transaction Flow");
       const sim = await this.simulateTransactionUsingTransaction(Array.from(txArray), password);
       RpcTracer.success(rootSpan.id, sim);
       return sim;
@@ -394,10 +405,17 @@ export abstract class TransactionService {
       const programId = TOKEN_PROGRAM_ID;
       RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
       const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash(ctx);
-      RpcTracer.addEvent(rootSpan.id, "SPL: createTransferInstruction");
-      const transaction = new Transaction().add(
-        createTransferInstruction(source, dest, ownerPublicKey, amount, [], programId),
+      RpcTracer.addEvent(rootSpan.id, "Creating transfer instruction");
+      const instruction = await RpcService.createTransferInstruction(
+        source,
+        dest,
+        ownerPublicKey,
+        amount,
+        [],
+        programId,
+        ctx
       );
+      const transaction = new Transaction().add(instruction);
       transaction.feePayer = new PublicKey(activeAccount.pubkey);
       transaction.recentBlockhash = blockhash;
 
@@ -444,34 +462,34 @@ export abstract class TransactionService {
     const programId = TOKEN_PROGRAM_ID;
     const associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID;
     const allowOwnerOffCurve = false;
-    const connection = RpcService.getConnection();
-    RpcTracer.addEvent(rootSpan.id, "SPL: getAssociatedTokenAddressSync");
-    const associatedToken = getAssociatedTokenAddressSync(
+    RpcTracer.addEvent(rootSpan.id, "Get ATA for owner");
+    const associatedToken = await RpcService.getAssociatedTokenAddress(
       mint,
       owner,
       allowOwnerOffCurve,
       programId,
       associatedTokenProgramId,
+      ctx
     );
 
     let account: Account;
     try {
-      RpcTracer.addEvent(rootSpan.id, "SPL: getAccount");
-      account = await getAccount(connection, associatedToken, commitment, programId);
+      RpcTracer.addEvent(rootSpan.id, "Get ATA account info");
+      account = await RpcService.getAccount(associatedToken, commitment, programId, ctx);
     } catch (error: unknown) {
       if (error instanceof TokenAccountNotFoundError || error instanceof TokenInvalidAccountOwnerError) {
         try {
-          RpcTracer.addEvent(rootSpan.id, "SPL: createAssociatedTokenAccountInstruction");
-          const transaction = new Transaction().add(
-            createAssociatedTokenAccountInstruction(
-              payer,
-              associatedToken,
-              owner,
-              mint,
-              programId,
-              associatedTokenProgramId,
-            ),
+          RpcTracer.addEvent(rootSpan.id, "Creating ATA instruction");
+          const instruction = await RpcService.createAssociatedTokenAccountInstruction(
+            payer,
+            associatedToken,
+            owner,
+            mint,
+            programId,
+            associatedTokenProgramId,
+            ctx
           );
+          const transaction = new Transaction().add(instruction);
 
           RpcTracer.addEvent(rootSpan.id, "Fetching blockhash");
           const { blockhash, lastValidBlockHeight } = await RpcService.getLatestBlockhash(ctx);
@@ -493,8 +511,8 @@ export abstract class TransactionService {
           console.error("Failed to create associated token account:", error);
         }
 
-        RpcTracer.addEvent(rootSpan.id, "SPL: getAccount");
-        account = await getAccount(connection, associatedToken, commitment, programId);
+        RpcTracer.addEvent(rootSpan.id, "Getting ATA account info");
+        account = await RpcService.getAccount(associatedToken, commitment, programId, ctx);
       } else {
         RpcTracer.error(rootSpan.id, String(error));
         throw error;
