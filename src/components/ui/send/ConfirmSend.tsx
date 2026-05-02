@@ -156,7 +156,9 @@ export default function ConfirmSend({
   const estimatedFee = lamportsToSol(5000);
   const [traces, setTraces] = useState<RpcSpan[]>([]);
   const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
-  const [viewTransactionDetails, setViewTransactionDetails] = useState(false);
+  const [viewTransactionDetails, _setViewTransactionDetails] = useState(false);
+
+  const clearTraces = () => setTraces([]);
 
   const parsedInstructions = useMemo(
     () => TransactionDebuggerEngine.parseInstructions(simulationResult?.logs ?? []),
@@ -334,37 +336,27 @@ export default function ConfirmSend({
     );
   }
 
-  // ── Simulating overlay ─────────────────────────────────────────────────────
+  // ── Simulating Transaction Trace View ─────────────────────────────────────────────────────
   if (simulating || !viewSimulationDetails) {
-    console.log("Traces at render Simulation:", traces, simErr, simulating, viewSimulationDetails);
-    return <TraceView traces={traces} success={simErr ? false : true} proceed={setViewSimulationDetails} loading={simulating} />
+    const proceedFromSimulationTrace = () => {
+      setViewSimulationDetails(true);
+      clearTraces();
+    }
+    return <TraceView traces={traces} success={simErr ? false : true} proceed={proceedFromSimulationTrace} loading={simulating} />
   }
 
-  // ── Sending spinner ────────────────────────────────────────────────────────
-  // if (isSending) {
-  //   return (
-  //     <div className="flex flex-col justify-center items-center h-full gap-4">
-  //       <div className="relative">
-  //         <div className="border-t-2 border-primary rounded-full animate-spin">
-  //           <div className="h-16 w-16" />
-  //         </div>
-  //         <img src="/logo.png" alt="logo" className="h-8 w-8 absolute top-4 left-4" />
-  //       </div>
-  //       <p className="text-xs text-gray-400">Sending transaction…</p>
-  //     </div>
-  //   );
-  // }
-
+  // ── Sending Transaction Trace View────────────────────────────────────────────────────────
   const shouldShowTransactionTrace = isSending || (!!signature && !viewTransactionDetails);
-
+  const proceedToTransactionDetails = () => {
+    navigate("/transaction-details", { state: { traces, signature } });
+  }
   if (shouldShowTransactionTrace) {
-    console.log("Traces at render Transaction:", traces, isSending, viewTransactionDetails);
     return (
-      <TraceView traces={traces} success={signature ? true : false} proceed={setViewTransactionDetails} loading={isSending} />
+      <TraceView traces={traces} success={signature ? true : false} proceed={proceedToTransactionDetails} loading={isSending} />
     );
   }
 
-  // ── Success ────────────────────────────────────────────────────────────────
+  // ── Transaction Success ────────────────────────────────────────────────────────────────
   if (signature && viewTransactionDetails) {
     console.log("Traces at render:", traces, signature, viewTransactionDetails);
     return (
@@ -413,6 +405,8 @@ export default function ConfirmSend({
       </div>
     );
   }
+
+  console.log({ parsedInstructions, simErr });
 
   // ── Main confirm view ──────────────────────────────────────────────────────
   return (

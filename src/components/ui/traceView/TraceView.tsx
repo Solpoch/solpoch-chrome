@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { RpcSpan } from "../../../lib/rpc/tracer";
 import Collapsible from "../layout/Collapsible";
@@ -74,7 +74,7 @@ function TraceViewButton({
   loading,
 }: {
   success: boolean;
-  proceed: Dispatch<SetStateAction<boolean>>;
+  proceed: () => void;
   loading: boolean;
 }) {
   return (
@@ -83,7 +83,7 @@ function TraceViewButton({
       onClick={() => {
         if (!loading) {
           console.log("Proceeding to next step");
-          proceed(() => true);
+          proceed();
         };
       }}
       className={`flex items-center justify-center gap-2 px-4 py-2.5  hover:gap-4 disabled:opacity-40 disabled:cursor-not-allowed transition-all rounded-full font-medium w-full text-xs ${success
@@ -439,7 +439,7 @@ export default function TraceView({
 }: {
   traces: RpcSpan[];
   success: boolean;
-  proceed: Dispatch<SetStateAction<boolean>>;
+  proceed: () => void;
   loading: boolean;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("waterfall");
@@ -447,6 +447,13 @@ export default function TraceView({
   const [remainingMs, setRemainingMs] = useState(KEEP_VIEWING_DURATION_MS);
   const timerIdRef = useRef<number | null>(null);
   const timerStartRef = useRef(0);
+  const clearAndProceed = () => {
+    if (timerIdRef.current !== null) {
+      window.clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
+    }
+    proceed();
+  };
   useEffect(() => {
     if (traces.length) {
       console.log(traces);
@@ -479,7 +486,7 @@ export default function TraceView({
       if (nextRemaining <= 0 && timerIdRef.current !== null) {
         window.clearInterval(timerIdRef.current);
         timerIdRef.current = null;
-        proceed(() => true);
+        clearAndProceed();
       }
     }, 50);
 
@@ -646,7 +653,7 @@ export default function TraceView({
             }}
           />
         ) : (
-          <TraceViewButton success={success} proceed={proceed} loading={loading} />
+          <TraceViewButton success={success} proceed={clearAndProceed} loading={loading} />
         )}
       </div>
     </>

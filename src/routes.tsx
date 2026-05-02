@@ -20,6 +20,7 @@ import Swap from "./components/pages/Swap";
 import TokenInfo from "./components/pages/TokenInfo";
 import TransactionHistory from "./components/pages/TransactionHistory";
 import UnlockPopup from "./components/pages/UnlockPopup";
+import TransactionDetails from "./components/ui/send/TransactionDetails";
 
 export const routes = [
   {
@@ -110,5 +111,9 @@ export const routes = [
   {
     path: '/http-methods',
     element: <SolanaRpcHttpMethods />
+  },
+  {
+    path: '/transaction-details',
+    element: <TransactionDetails />
   }
 ]
