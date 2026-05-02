@@ -98,7 +98,7 @@ function TraceViewButton({
   );
 }
 
-const KEEP_VIEWING_DURATION_MS = 5000;
+const KEEP_VIEWING_DURATION_MS = 4000;
 
 function formatKeepViewingCountdown(durationMs: number) {
   const seconds = Math.max(durationMs, 0) / 1000;

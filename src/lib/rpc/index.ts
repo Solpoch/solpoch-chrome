@@ -50,7 +50,7 @@ export class RpcService {
 
   static async getBalance(publicKey: string, parentCtx?: TraceContext): Promise<number> {
     return this.traceCall(
-      "RPC:getBalance",
+      "RPC : getBalance",
       { publicKey },
       async () => {
         const connection = this.getConnection();
@@ -66,7 +66,7 @@ export class RpcService {
     lastValidBlockHeight: number;
   }>> {
     return this.traceCall(
-      "RPC:getLatestBlockhash",
+      "RPC : getLatestBlockhash",
       {},
       async () => {
         const connection = this.getConnection();
@@ -79,7 +79,7 @@ export class RpcService {
 
   static async sendRawTransaction(signedTx: Transaction, parentCtx?: TraceContext): Promise<TransactionSignature> {
     return this.traceCall(
-      "RPC:sendRawTransaction",
+      "RPC : sendRawTransaction",
       { signedTx: "redacted" },
       async () => {
         const connection = this.getConnection();
@@ -95,7 +95,7 @@ export class RpcService {
 
   static async simulateTransaction(signedTx: Transaction, config: SimulateTransactionConfig, parentCtx?: TraceContext): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
     return this.traceCall(
-      "RPC:simulateTransaction",
+      "RPC : simulateTransaction",
       {
         signedTx: "redacted",
         config: {
@@ -115,7 +115,7 @@ export class RpcService {
 
   static async getBlockHeight(parentCtx?: TraceContext): Promise<number> {
     return this.traceCall(
-      "RPC:getBlockHeight",
+      "RPC : getBlockHeight",
       {},
       async () => {
         const connection = this.getConnection();
@@ -128,7 +128,7 @@ export class RpcService {
 
   static async getSignatureStatuses(signatures: string[], parentCtx?: TraceContext): Promise<RpcResponseAndContext<(SignatureStatus | null)[]>> {
     return this.traceCall(
-      "RPC:getSignatureStatuses",
+      "RPC : getSignatureStatuses",
       { signatures },
       async () => {
         const connection = this.getConnection();
