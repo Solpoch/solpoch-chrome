@@ -454,11 +454,6 @@ export default function TraceView({
     }
     proceed();
   };
-  useEffect(() => {
-    if (traces.length) {
-      console.log(traces);
-    }
-  }, [traces]);
 
   useEffect(() => {
     if (timerIdRef.current !== null) {

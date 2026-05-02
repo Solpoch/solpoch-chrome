@@ -357,8 +357,6 @@ export default function ConfirmSend({
     );
   }
 
-  console.log({ parsedInstructions, simErr });
-
   // ── Main confirm view ──────────────────────────────────────────────────────
   return (
     <>
@@ -523,6 +521,27 @@ export default function ConfirmSend({
             </div>
           </Collapsible>
         )}
+
+        {/* Fallback for no logs, just errors */}
+        {parsedInstructions.length === 0 && simErr && (
+          <Collapsible
+            title={
+              <div className="flex items-center justify-between gap-2 w-full text-xs text-gray-500 hover:text-gray-300 transition-colors select-none">
+                <span>View error details</span>
+              </div>
+            }
+            className="w-full"
+            headerClassName="px-0 py-0"
+            contentClassName="mt-2"
+          >
+            <div className="mt-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 max-h-32 overflow-y-auto scrollbar-hide">
+              <p className="text-xs font-mono text-red-400 leading-5 break-all">
+                {JSON.stringify(simErr)}
+              </p>
+            </div>
+          </Collapsible>
+        )}
+
       </div>
 
       {/* Sticky action buttons */}
