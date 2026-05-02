@@ -39,7 +39,6 @@ RpcTracer.subscribe((trace) => {
     type: "RPC_TRACE_UPDATE",
     payload: trace,
   });
-  console.log("Emitted trace update from RpcTracer subscriber:", trace);
 });
 
 

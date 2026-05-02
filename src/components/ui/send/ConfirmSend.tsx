@@ -1,7 +1,6 @@
 import {
   ArrowUpIcon,
   CheckIcon,
-  CheckCircleIcon,
   CpuIcon,
   CurrencyDollarIcon,
   GlobeIcon,
@@ -150,13 +149,13 @@ export default function ConfirmSend({
   const [canSend, setCanSend] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
+  const [showTransactionTrace, setShowTransactionTrace] = useState(false);
   const account = useAccountStore((state) => state.account);
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
   const estimatedFee = lamportsToSol(5000);
   const [traces, setTraces] = useState<RpcSpan[]>([]);
   const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
-  const [viewTransactionDetails, _setViewTransactionDetails] = useState(false);
 
   const clearTraces = () => setTraces([]);
 
@@ -281,6 +280,7 @@ export default function ConfirmSend({
       setIsSending(false);
       return;
     }
+    setShowTransactionTrace(true);
     try {
       const response = await sendMessage("SIGN_AND_SEND_TRANSACTION", {
         to: toAddress,
@@ -346,63 +346,14 @@ export default function ConfirmSend({
   }
 
   // ── Sending Transaction Trace View────────────────────────────────────────────────────────
-  const shouldShowTransactionTrace = isSending || (!!signature && !viewTransactionDetails);
+  const shouldShowTransactionTrace = showTransactionTrace;
   const proceedToTransactionDetails = () => {
-    navigate("/transaction-details", { state: { traces, signature } });
+    setShowTransactionTrace(false);
+    navigate("/transaction-details", { state: { traces, signature, toAddress, amount } });
   }
   if (shouldShowTransactionTrace) {
     return (
       <TraceView traces={traces} success={signature ? true : false} proceed={proceedToTransactionDetails} loading={isSending} />
-    );
-  }
-
-  // ── Transaction Success ────────────────────────────────────────────────────────────────
-  if (signature && viewTransactionDetails) {
-    console.log("Traces at render:", traces, signature, viewTransactionDetails);
-    return (
-      <div className="flex flex-col justify-center items-center h-full gap-4">
-        <div className="flex bg-green-500/10 rounded-full p-4">
-          <CheckCircleIcon size={40} weight="fill" className="text-green-500" />
-        </div>
-        <div className="text-center flex flex-col gap-1">
-          <p className="text-xs font-semibold text-gray-200">Transaction sent successfully!</p>
-          <a
-            href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-primary"
-          >
-            View on Solana Explorer
-          </a>
-        </div>
-        <SectionCard>
-          <Row
-            label="To"
-            value={shortAddress(toAddress)}
-            icon={<ArrowUpIcon size={13} />}
-            mono
-            accent="neutral"
-          />
-          <Row
-            label="Amount"
-            value={`${amount} SOL`}
-            icon={<CurrencyDollarIcon size={13} />}
-            accent="red"
-          />
-          <Row
-            label="Network"
-            value="Devnet"
-            icon={<GlobeIcon size={13} />}
-            accent="neutral"
-          />
-        </SectionCard>
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white/7 hover:bg-white/11 transition-colors rounded-full text-white font-medium w-full text-xs mt-2"
-        >
-          Done
-        </button>
-      </div>
     );
   }
 

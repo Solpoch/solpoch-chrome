@@ -277,4 +277,9 @@ export class RpcServiceContent {
     return transactions;
   };
 
+  static async getTransaction(signature: string) {
+    const connection = this.getConnection();
+    return await connection.getTransaction(signature);
+  }
+
 }
