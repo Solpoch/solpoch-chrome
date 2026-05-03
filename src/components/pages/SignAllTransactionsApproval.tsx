@@ -323,7 +323,7 @@ export default function SignAllTransactionsApproval() {
     <SafeArea>
       <div className="flex flex-col h-full p-6">
         {/* Header */}
-        <div className="flex justify-between items-center sticky top-0 z-10 bg-bg/80 backdrop-blur-sm">
+        <div className="flex justify-between items-center sticky top-0 z-10 bg-bg/80 backdrop-blur-sm pb-6">
           <ProfileAvatar account={account} accountLoading={false} />
           <button className="flex bg-white/10 items-center gap-1 rounded-full p-2 justify-center">
             <CodeIcon size={14} weight="bold" className="text-gray-400" />
@@ -331,7 +331,7 @@ export default function SignAllTransactionsApproval() {
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-3 pb-6">
+        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-3">
 
           {/* Title + origin */}
           <div>
