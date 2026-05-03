@@ -2,7 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import SafeArea from "../ui/layout/SafeArea";
 import { useEffect, useMemo, useState } from "react";
 import { sendMessage } from "../../lib/utils/chrome/message";
-import { Transaction, type SimulatedTransactionResponse } from "@solana/web3.js";
+import { Transaction, type SendOptions, type SimulatedTransactionResponse } from "@solana/web3.js";
 import ConfirmWithPassword from "../ui/util/ConfirmWithPassword";
 import { lamportsToSol } from "../../lib/utils/solana/conversion";
 import ProfileAvatar from "../ui/home/ProfileAvatar";
@@ -36,6 +36,8 @@ import { API_ROUTES } from "../../lib/http/api";
 import { RpcServiceContent } from "../../lib/rpc/content";
 import type { RpcSpan } from "../../lib/rpc/tracer";
 import TraceView from "../ui/traceView/TraceView";
+import { type ApprovalRequest } from "../../scripts/background/ApprovalManager";
+import ShowDappPayload from "../ui/util/ShowDappPayload";
 
 export default function SignAndSendTransactionApproval() {
   const [searchParams] = useSearchParams();
@@ -56,6 +58,12 @@ export default function SignAndSendTransactionApproval() {
   const [showTransactionTrace, setShowTransactionTrace] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [approvalSuccess, setApprovalSuccess] = useState(false);
+
+  const [payloadFromDapp, setPayloadFromDapp] = useState<
+    ApprovalRequest<"APPROVAL_SIGN_AND_SEND_TRANSACTION">["payload"] | null
+  >(null);
+  const [showDappPayload, setShowDappPayload] = useState(false);
+  const toggleShowDappPayload = () => setShowDappPayload((prev) => !prev);
 
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
@@ -170,6 +178,7 @@ export default function SignAndSendTransactionApproval() {
           setPrograms(parseProgramInteractions(transaction));
           setOrigin(approval.origin ?? "");
           setLogoUrl(approval.icon ?? "/logo.png");
+          setPayloadFromDapp(approval.payload);
         }
       } catch (error) {
         console.error("Failed to get approval:", error);
@@ -278,6 +287,20 @@ export default function SignAndSendTransactionApproval() {
     );
   }
 
+  if (showDappPayload && payloadFromDapp) {
+    if (parsedTx) {
+      return (
+        <ShowDappPayload method="signAndSendTransaction" parameters={{
+          transaction: payloadFromDapp.transaction,
+          options: payloadFromDapp.options as SendOptions,
+        }}
+          toggleShowDappPayload={toggleShowDappPayload}
+          showDappPayload={showDappPayload}
+        />
+      )
+    }
+  }
+
 
   if (simulating || !viewSimulationDetails) {
     const proceedFromSimulationTrace = () => {
@@ -291,8 +314,11 @@ export default function SignAndSendTransactionApproval() {
           {/* Header */}
           <div className="flex justify-between items-center sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-6">
             <ProfileAvatar account={account} accountLoading={false} />
-            <button className="flex bg-white/10 items-center gap-1 rounded-full p-2 justify-center">
-              <CodeIcon size={14} weight="bold" className="text-gray-400" />
+            <button
+              onClick={toggleShowDappPayload}
+              className={`flex items-center gap-1 rounded-full p-2 justify-center ${showDappPayload ? "bg-primary" : "bg-white/10"}`}
+            >
+              <CodeIcon size={14} weight="bold" className={`${showDappPayload ? "text-white" : "text-gray-400"}`} />
             </button>
           </div>
           {/* Scrollable body */}
@@ -320,8 +346,11 @@ export default function SignAndSendTransactionApproval() {
           {/* Header */}
           <div className="flex justify-between items-center sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-6">
             <ProfileAvatar account={account} accountLoading={false} />
-            <button className="flex bg-white/10 items-center gap-1 rounded-full p-2 justify-center">
-              <CodeIcon size={14} weight="bold" className="text-gray-400" />
+            <button
+              onClick={toggleShowDappPayload}
+              className={`flex items-center gap-1 rounded-full p-2 justify-center ${showDappPayload ? "bg-primary" : "bg-white/10"}`}
+            >
+              <CodeIcon size={14} weight="bold" className={`${showDappPayload ? "text-white" : "text-gray-400"}`} />
             </button>
           </div>
           {/* Scrollable body */}
@@ -338,6 +367,7 @@ export default function SignAndSendTransactionApproval() {
       </SafeArea>
     );
   }
+
   // Balance change from transfers where current wallet is involved
   const myKey = account?.pubkey ?? "";
   const netLamports = transfers.reduce((acc, t) => {
@@ -354,8 +384,11 @@ export default function SignAndSendTransactionApproval() {
         {/* Header */}
         <div className="flex justify-between items-center sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-6">
           <ProfileAvatar account={account} accountLoading={false} />
-          <button className="flex bg-white/10 items-center gap-1 rounded-full p-2 justify-center">
-            <CodeIcon size={14} weight="bold" className="text-gray-400" />
+          <button
+            onClick={toggleShowDappPayload}
+            className={`flex items-center gap-1 rounded-full p-2 justify-center ${showDappPayload ? "bg-primary" : "bg-white/10"}`}
+          >
+            <CodeIcon size={14} weight="bold" className={`${showDappPayload ? "text-white" : "text-gray-400"}`} />
           </button>
         </div>
 
