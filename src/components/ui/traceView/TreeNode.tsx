@@ -9,6 +9,8 @@ import {
   safeJson,
   statusLabel,
 } from "./traceViewUtils";
+import JsonView from '@uiw/react-json-view';
+import { vscodeTheme } from '@uiw/react-json-view/vscode';
 
 export default function TreeNode({
   span,
@@ -59,9 +61,7 @@ export default function TreeNode({
 
         <div className="px-3 py-2.5 border-b border-white/5 last:border-b-0">
           <div className="mb-1 text-xs text-gray-400">Arguments</div>
-          <pre className="max-h-40 overflow-x-auto rounded-md bg-black/20 p-2 text-xs text-gray-200 scrollbar-hide">
-            {span.attributes ? safeJson(span.attributes) : "No arguments"}
-          </pre>
+          <JsonView value={span.attributes} style={vscodeTheme} className="rounded-md text-xs p-4" />
         </div>
 
         <div className="px-3 py-2.5 border-b border-white/5 last:border-b-0">
