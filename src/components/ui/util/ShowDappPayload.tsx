@@ -125,7 +125,7 @@ function parsePayload(method: Method, parameters: DappPayloadMap[Method]): {
     default:
       return {
         raw: parameters,
-        parsed: "No parser implemented for this method"
+        parsed: parameters
       }
   }
 };
