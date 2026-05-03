@@ -21,7 +21,6 @@ import {
 } from "@phosphor-icons/react";
 import { useAccountStore } from "../../store";
 import { parseProgramInteractions, parseTransferDetails, shortAddress, type ProgramInteraction, type TransferDetails } from "../../lib/utils/solana/parse";
-import SimulatingOverlay from "../ui/popup/signAndSendTransaction/SimulatingOverlay";
 import StatusBadge from "../ui/popup/signAndSendTransaction/StatusBadge";
 import SectionCard from "../ui/popup/signAndSendTransaction/SectionCard";
 import Row from "../ui/popup/signAndSendTransaction/Row";
@@ -35,6 +34,8 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { API_ROUTES } from "../../lib/http/api";
 import { RpcServiceContent } from "../../lib/rpc/content";
+import type { RpcSpan } from "../../lib/rpc/tracer";
+import TraceView from "../ui/traceView/TraceView";
 
 export default function SignAllTransactionsApproval() {
   const [searchParams] = useSearchParams();
@@ -51,6 +52,34 @@ export default function SignAllTransactionsApproval() {
   const [simulating, setSimulating] = useState(false);
   const [simulationResults, setSimulationResults] = useState<(SimulatedTransactionResponse | null)[]>([]);
   const [selectedTxIndex, setSelectedTxIndex] = useState(0);
+  const [traces, setTraces] = useState<RpcSpan[]>([]);
+  const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
+
+  const clearTraces = () => setTraces([]);
+
+  useEffect(() => {
+    const handler = (message: any) => {
+      if (message.type !== "RPC_TRACE_UPDATE") return;
+
+      setTraces((prev) => {
+        const idx = prev.findIndex((t) => t.id === message.payload.id);
+
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = message.payload;
+          return next;
+        }
+
+        return [...prev, message.payload];
+      });
+    };
+
+    chrome.runtime.onMessage.addListener(handler);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handler);
+    };
+  }, []);
 
   // get approval from approval manager using id
   useEffect(() => {
@@ -259,10 +288,32 @@ export default function SignAllTransactionsApproval() {
     );
   }
 
-  if (simulating) {
+  if (simulating || !viewSimulationDetails) {
+    const proceedFromSimulationTrace = () => {
+      setViewSimulationDetails(true);
+      clearTraces();
+    };
+
     return (
       <SafeArea>
-        <SimulatingOverlay />
+        <div className="flex flex-col h-full p-6">
+          {/* Header */}
+          <div className="flex justify-between items-center sticky top-0 z-10 bg-transparent backdrop-blur-sm pb-6">
+            <ProfileAvatar account={account} accountLoading={false} />
+            <button className="flex bg-white/10 items-center gap-1 rounded-full p-2 justify-center">
+              <CodeIcon size={14} weight="bold" className="text-gray-400" />
+            </button>
+          </div>
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-3 pb-6">
+            <TraceView
+              traces={traces}
+              success={!simErr}
+              proceed={proceedFromSimulationTrace}
+              loading={simulating}
+            />
+          </div>
+        </div>
       </SafeArea>
     );
   }
@@ -486,6 +537,26 @@ export default function SignAllTransactionsApproval() {
                     {log}
                   </p>
                 ))}
+              </div>
+            </Collapsible>
+          )}
+
+          {/* Fallback for no logs, just errors */}
+          {parsedInstructions.length === 0 && simErr && (
+            <Collapsible
+              title={
+                <div className="flex items-center justify-between gap-2 w-full text-xs text-gray-500 hover:text-gray-300 transition-colors select-none">
+                  <span>View error details</span>
+                </div>
+              }
+              className="w-full"
+              headerClassName="px-0 py-0"
+              contentClassName="mt-2"
+            >
+              <div className="mt-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 max-h-32 overflow-y-auto scrollbar-hide">
+                <p className="text-xs font-mono text-red-400 leading-5 break-all">
+                  {JSON.stringify(simErr)}
+                </p>
               </div>
             </Collapsible>
           )}
