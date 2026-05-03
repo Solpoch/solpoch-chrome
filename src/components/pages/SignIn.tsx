@@ -8,6 +8,8 @@ import ConfirmWithPassword from "../ui/util/ConfirmWithPassword";
 import { CheckIcon, CodeIcon, EnvelopeSimpleIcon, InfoIcon, XIcon } from "@phosphor-icons/react";
 import SectionCard from "../ui/popup/signAndSendTransaction/SectionCard";
 import { createSignInMessage } from "../../lib/utils/helper/createSignInMessage";
+import { type ApprovalRequest } from "../../scripts/background/ApprovalManager";
+import ShowDappPayload from "../ui/util/ShowDappPayload";
 
 export default function SignInApproval() {
   const [searchParams] = useSearchParams();
@@ -18,6 +20,11 @@ export default function SignInApproval() {
   const [logoUrl, setLogoUrl] = useState<string>("/logo.png");
   const account = useAccountStore((state) => state.account);
   const [message, setMessage] = useState<string>("");
+  const [payloadFromDapp, setPayloadFromDapp] = useState<
+    ApprovalRequest<"APPROVAL_SIGN_IN">["payload"] | null
+  >(null);
+  const [showDappPayload, setShowDappPayload] = useState(false);
+  const toggleShowDappPayload = () => setShowDappPayload((prev) => !prev);
 
   // get approval from approval manager using id
   useEffect(() => {
@@ -33,6 +40,7 @@ export default function SignInApproval() {
           setOrigin(approval.origin ?? "");
           setLogoUrl(approval.icon ?? "/logo.png");
           setMessage(signInMessage);
+          setPayloadFromDapp(approval.payload);
         }
       } catch (error) {
         console.error("Failed to get approval:", error);
@@ -78,6 +86,17 @@ export default function SignInApproval() {
     );
   }
 
+  if (showDappPayload && payloadFromDapp) {
+    return (
+      <ShowDappPayload
+        method="signIn"
+        parameters={payloadFromDapp.input ?? {}}
+        toggleShowDappPayload={toggleShowDappPayload}
+        showDappPayload={showDappPayload}
+      />
+    );
+  }
+
 
   return (
     <SafeArea>
@@ -85,8 +104,11 @@ export default function SignInApproval() {
         {/* Header */}
         <div className="flex justify-between items-center sticky top-0 z-10 bg-bg/80 backdrop-blur-sm pb-6">
           <ProfileAvatar account={account} accountLoading={false} />
-          <button className="flex bg-white/10 items-center gap-1 rounded-full p-2 justify-center">
-            <CodeIcon size={14} weight="bold" className="text-gray-400" />
+          <button
+            onClick={toggleShowDappPayload}
+            className={`flex items-center gap-1 rounded-full p-2 justify-center ${showDappPayload ? "bg-primary" : "bg-white/10"}`}
+          >
+            <CodeIcon size={14} weight="bold" className={`${showDappPayload ? "text-white" : "text-gray-400"}`} />
           </button>
         </div>
 
