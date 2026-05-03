@@ -36,7 +36,55 @@ export class RpcTracer {
   }
 
   private static emit(trace: RpcSpan) {
-    this.listeners.forEach((l) => l(trace));
+    const safeTrace = this.toSerializableSpan(trace);
+    this.listeners.forEach((l) => l(safeTrace));
+  }
+
+  private static toSerializableSpan(trace: RpcSpan): RpcSpan {
+    return {
+      ...trace,
+      attributes: this.toSerializableValue(trace.attributes),
+      result: this.toSerializableValue(trace.result),
+      error: this.toSerializableValue(trace.error),
+      events: this.toSerializableValue(trace.events),
+    };
+  }
+
+  private static toSerializableValue(value: any): any {
+    const seen = new WeakSet<object>();
+
+    const replacer = (_key: string, v: any) => {
+      if (typeof v === "bigint") return v.toString();
+
+      if (v instanceof Error) {
+        return {
+          name: v.name,
+          message: v.message,
+          stack: v.stack,
+        };
+      }
+
+      if (typeof v === "object" && v !== null) {
+        if (typeof v.toBase58 === "function") return v.toBase58();
+
+        if (v instanceof Uint8Array) return Array.from(v);
+
+        if (v instanceof Map) return Array.from(v.entries());
+
+        if (v instanceof Set) return Array.from(v.values());
+
+        if (seen.has(v)) return "[Circular]";
+        seen.add(v);
+      }
+
+      return v;
+    };
+
+    try {
+      return JSON.parse(JSON.stringify(value, replacer));
+    } catch {
+      return String(value);
+    }
   }
 
   static addEvent(spanId: string, message: string) {
@@ -50,7 +98,7 @@ export class RpcTracer {
       message,
     });
 
-    this.emit(structuredClone(span));
+    this.emit(span);
   }
 
   static start(method: string, attributes?: Record<string, any>, ctx?: TraceContext): RpcSpan {
