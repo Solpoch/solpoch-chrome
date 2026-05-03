@@ -1,11 +1,15 @@
-import { Connection, PublicKey, Transaction, VersionedTransaction, type Blockhash, type Commitment, type RpcResponseAndContext, type SignatureStatus, type SimulatedTransactionResponse, type SimulateTransactionConfig, type TransactionSignature } from "@solana/web3.js";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, getAssociatedTokenAddressSync, getMint, TOKEN_PROGRAM_ID, type Account } from "@solana/spl-token";
+// this is a monkey patch file for the RpcService class to be called by the content script (ui)
+// as the rpc services was originally designed to be used in the background script
+// this needs to be cahged so that only background script can call the rpc services and content script can only call the background script to access rpc services
+
+
+import { Connection, PublicKey, Transaction, VersionedTransaction, type Blockhash, type RpcResponseAndContext, type SignatureStatus, type SimulatedTransactionResponse, type SimulateTransactionConfig, type TransactionSignature } from "@solana/web3.js";
+import { getMint, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   MPL_TOKEN_METADATA_PROGRAM_ID,
   deserializeMetadata,
 } from "@metaplex-foundation/mpl-token-metadata";
 import { publicKey as PublicKeyMeta } from "@metaplex-foundation/umi";
-import { RpcTracer, type TraceContext } from "./tracer";
 
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
   MPL_TOKEN_METADATA_PROGRAM_ID
@@ -19,124 +23,52 @@ const rpcEndpoints = {
 
 const rpcConnection = new Connection(rpcEndpoints.devnet, "confirmed");
 
-export class RpcService {
-
+export class RpcServiceContent {
   static getConnection(): Connection {
     return rpcConnection;
   }
 
-  static async traceCall<T>(
-    method: string,
-    attributes: Record<string, any>,
-    rpcfn: (ctx: TraceContext) => Promise<T>,
-    ctx?: TraceContext
-  ): Promise<T> {
-    const span = RpcTracer.start(method, attributes, ctx);
-
-    const childCtx: TraceContext = {
-      traceId: span.traceId,
-      parentId: span.id,
-    };
-
-    try {
-      const result = await rpcfn(childCtx);
-      RpcTracer.success(span.id, result);
-      return result;
-    } catch (err) {
-      RpcTracer.error(span.id, err);
-      throw err;
-    }
+  static async getBalance(publicKey: string): Promise<number> {
+    const connection = this.getConnection();
+    const balance = await connection.getBalance(new PublicKey(publicKey));
+    return balance;
   }
 
-  static async getBalance(publicKey: string, parentCtx?: TraceContext): Promise<number> {
-    return this.traceCall(
-      "RPC : getBalance",
-      { publicKey },
-      async () => {
-        const connection = this.getConnection();
-        const balance = await connection.getBalance(new PublicKey(publicKey));
-        return balance;
-      },
-      parentCtx
-    );
-  }
-
-  static async getLatestBlockhash(parentCtx?: TraceContext): Promise<Readonly<{
+  static async getLatestBlockhash(): Promise<Readonly<{
     blockhash: Blockhash;
     lastValidBlockHeight: number;
   }>> {
-    return this.traceCall(
-      "RPC : getLatestBlockhash",
-      {},
-      async () => {
-        const connection = this.getConnection();
-        const latestBlockHash = await connection.getLatestBlockhash();
-        return latestBlockHash;
-      },
-      parentCtx
-    );
+    const connection = this.getConnection();
+    const latestBlockHash = await connection.getLatestBlockhash();
+    return latestBlockHash;
   }
 
-  static async sendRawTransaction(signedTx: Transaction, parentCtx?: TraceContext): Promise<TransactionSignature> {
-    return this.traceCall(
-      "RPC : sendRawTransaction",
-      { signedTx: "redacted" },
-      async () => {
-        const connection = this.getConnection();
-        const signature = await connection.sendRawTransaction(
-          signedTx.serialize(),
-          { maxRetries: 3 }
-        );
-        return signature;
-      },
-      parentCtx
+  static async sendRawTransaction(signedTx: Transaction): Promise<TransactionSignature> {
+    const connection = this.getConnection();
+    const signature = await connection.sendRawTransaction(
+      signedTx.serialize(),
+      { maxRetries: 3 }
     );
+    return signature;
   }
 
-  static async simulateTransaction(signedTx: Transaction, config: SimulateTransactionConfig, parentCtx?: TraceContext): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
-    return this.traceCall(
-      "RPC : simulateTransaction",
-      {
-        signedTx: "redacted",
-        config: {
-          sigVerify: config.sigVerify,
-          replaceRecentBlockhash: config.replaceRecentBlockhash,
-        }
-      },
-      async () => {
-        const connection = this.getConnection();
-        const versionedTx = new VersionedTransaction(signedTx.compileMessage());
-        const simulation = await connection.simulateTransaction(versionedTx, config);
-        return simulation;
-      },
-      parentCtx
-    );
+  static async simulateTransaction(signedTx: Transaction, config: SimulateTransactionConfig): Promise<RpcResponseAndContext<SimulatedTransactionResponse>> {
+    const connection = this.getConnection();
+    const versionedTx = new VersionedTransaction(signedTx.compileMessage());
+    const simulation = await connection.simulateTransaction(versionedTx, config);
+    return simulation;
   }
 
-  static async getBlockHeight(parentCtx?: TraceContext): Promise<number> {
-    return this.traceCall(
-      "RPC : getBlockHeight",
-      {},
-      async () => {
-        const connection = this.getConnection();
-        const blockHeight = await connection.getBlockHeight();
-        return blockHeight;
-      },
-      parentCtx
-    );
+  static async getBlockHeight(): Promise<number> {
+    const connection = this.getConnection();
+    const blockHeight = await connection.getBlockHeight();
+    return blockHeight;
   }
 
-  static async getSignatureStatuses(signatures: string[], parentCtx?: TraceContext): Promise<RpcResponseAndContext<(SignatureStatus | null)[]>> {
-    return this.traceCall(
-      "RPC : getSignatureStatuses",
-      { signatures },
-      async () => {
-        const connection = this.getConnection();
-        const statuses = await connection.getSignatureStatuses(signatures);
-        return statuses;
-      },
-      parentCtx
-    );
+  static async getSignatureStatuses(signatures: string[]): Promise<RpcResponseAndContext<(SignatureStatus | null)[]>> {
+    const connection = this.getConnection();
+    const statuses = await connection.getSignatureStatuses(signatures);
+    return statuses;
   }
 
   static async getAssociatedTokenAccountInfo(publicKey: string, mintAddress: string) {
@@ -158,110 +90,6 @@ export class RpcService {
       decimals: info.tokenAmount.decimals,
       tokenAccount: tokenAccounts.value[0].pubkey.toBase58(),
     };
-  }
-
-  static async getAssociatedTokenAddress(
-    mint: PublicKey,
-    owner: PublicKey,
-    allowOwnerOffCurve = false,
-    programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
-    parentCtx?: TraceContext
-  ): Promise<PublicKey> {
-    return this.traceCall(
-      "SPL : getAssociatedTokenAddress",
-      {
-        mint: mint.toBase58(),
-        owner: owner.toBase58(),
-        allowOwnerOffCurve,
-      },
-      async () =>
-        getAssociatedTokenAddressSync(
-          mint,
-          owner,
-          allowOwnerOffCurve,
-          programId,
-          associatedTokenProgramId
-        ),
-      parentCtx
-    );
-  }
-
-  static async getAccount(
-    address: PublicKey,
-    commitment?: Commitment,
-    programId = TOKEN_PROGRAM_ID,
-    parentCtx?: TraceContext
-  ): Promise<Account> {
-    return this.traceCall(
-      "SPL : getAccount",
-      { address: address.toBase58() },
-      async () => {
-        const connection = this.getConnection();
-        return getAccount(connection, address, commitment, programId);
-      },
-      parentCtx
-    );
-  }
-
-  static async createAssociatedTokenAccountInstruction(
-    payer: PublicKey,
-    associatedToken: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
-    parentCtx?: TraceContext
-  ) {
-    return this.traceCall(
-      "SPL : createAssociatedTokenAccountInstruction",
-      {
-        payer: payer.toBase58(),
-        associatedToken: associatedToken.toBase58(),
-        owner: owner.toBase58(),
-        mint: mint.toBase58(),
-      },
-      async () =>
-        createAssociatedTokenAccountInstruction(
-          payer,
-          associatedToken,
-          owner,
-          mint,
-          programId,
-          associatedTokenProgramId
-        ),
-      parentCtx
-    );
-  }
-
-  static async createTransferInstruction(
-    source: PublicKey,
-    destination: PublicKey,
-    owner: PublicKey,
-    amount: number | bigint,
-    multiSigners: PublicKey[] = [],
-    programId = TOKEN_PROGRAM_ID,
-    parentCtx?: TraceContext
-  ) {
-    return this.traceCall(
-      "SPL : createTransferInstruction",
-      {
-        source: source.toBase58(),
-        destination: destination.toBase58(),
-        owner: owner.toBase58(),
-        amount: amount.toString(),
-      },
-      async () =>
-        createTransferInstruction(
-          source,
-          destination,
-          owner,
-          amount,
-          multiSigners,
-          programId
-        ),
-      parentCtx
-    );
   }
 
   static async getMintTokenInfo(mintAddress: string) {
@@ -449,6 +277,9 @@ export class RpcService {
     return transactions;
   };
 
-  // methods for transaction service for spl
+  static async getTransaction(signature: string) {
+    const connection = this.getConnection();
+    return await connection.getTransaction(signature);
+  }
 
 }

@@ -20,7 +20,6 @@ import {
   TransactionDebuggerEngine,
   type ParsedInstructionNode,
 } from "../../../lib/utils/solana/transactionDebugger";
-import SimulatingOverlay from "../popup/signAndSendTransaction/SimulatingOverlay";
 import StatusBadge from "../popup/signAndSendTransaction/StatusBadge";
 import SectionCard from "../popup/signAndSendTransaction/SectionCard";
 import Row from "../popup/signAndSendTransaction/Row";
@@ -31,8 +30,10 @@ import AiCrad from "../layout/AiCrad";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { API_ROUTES } from "../../../lib/http/api";
-import { RpcService } from "../../../lib/rpc";
+import { RpcServiceContent } from "../../../lib/rpc/content";
 import Collapsible from "../layout/Collapsible";
+import type { RpcSpan } from "../../../lib/rpc/tracer";
+import TraceView from "../traceView/TraceView";
 
 // TODO: make this check logic better.. real check that if destination doesn't have a ata.
 function canProceedWithAtaCreation(simulation: SimulatedTransactionResponse | null) {
@@ -79,6 +80,9 @@ export default function ConfirmSendSplToken({
   const [canSend, setCanSend] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
+  const [showTransactionTrace, setShowTransactionTrace] = useState(false);
+  const [traces, setTraces] = useState<RpcSpan[]>([]);
+  const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
   const account = useAccountStore((state) => state.account);
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
@@ -150,6 +154,8 @@ export default function ConfirmSendSplToken({
     );
   };
 
+  const clearTraces = () => setTraces([]);
+
   useEffect(() => {
     async function simulate() {
       if (!mintAddressBase58 || !toAddress || !amount || !password) {
@@ -167,8 +173,12 @@ export default function ConfirmSendSplToken({
         setSimulationResult(response);
         setCanSend(!response?.err || canProceedWithAtaCreation(response));
       } catch (error) {
-        console.error("Simulation error:", error);
-        setCanSend(true);
+        setSimulationResult({
+          err: error!,
+          logs: [],
+          unitsConsumed: 0,
+        })
+        setCanSend(false);
       } finally {
         setSimulating(false);
       }
@@ -177,6 +187,30 @@ export default function ConfirmSendSplToken({
       simulate();
     }
   }, [toAddress, amount, confimedWithPassword]);
+
+  useEffect(() => {
+    const handler = (message: any) => {
+      if (message.type !== "RPC_TRACE_UPDATE") return;
+
+      setTraces((prev) => {
+        const idx = prev.findIndex((trace) => trace.id === message.payload.id);
+
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = message.payload;
+          return next;
+        }
+
+        return [...prev, message.payload];
+      });
+    };
+
+    chrome.runtime.onMessage.addListener(handler);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handler);
+    };
+  }, []);
 
   const handleSend = async () => {
     if (!mintAddressBase58 || !toAddress || !amount || !password) {
@@ -190,6 +224,7 @@ export default function ConfirmSendSplToken({
       setIsSending(false);
       return;
     }
+    setShowTransactionTrace(true);
     try {
       const response = await sendMessage("SIGN_AND_SEND_TOKEN_TRANSACTION", {
         mint: mintAddressBase58,
@@ -211,7 +246,8 @@ export default function ConfirmSendSplToken({
     queryKey: ["aiTokenExplanation", simErr],
     queryFn: async () => {
       if (!simErr) return null;
-      const senderBalance = account?.pubkey ? await RpcService.getBalance(account.pubkey) : "Unknown";
+      console.log("Fetching AI explanation for simulation error:", simErr);
+      const senderBalance = account?.pubkey ? await RpcServiceContent.getBalance(account.pubkey) : "Unknown";
       const context = `
         Simulation error: ${JSON.stringify(simErr)},
         Sender Balance: ${senderBalance},
@@ -247,9 +283,37 @@ export default function ConfirmSendSplToken({
     );
   }
 
-  // ── Simulating overlay ─────────────────────────────────────────────────────
-  if (simulating) {
-    return <SimulatingOverlay />;
+  // ── Simulating Transaction Trace View ─────────────────────────────────────
+  if (simulating || !viewSimulationDetails) {
+    const proceedFromSimulationTrace = () => {
+      setViewSimulationDetails(true);
+      clearTraces();
+    };
+    return (
+      <TraceView
+        traces={traces}
+        success={simErr ? false : true}
+        proceed={proceedFromSimulationTrace}
+        loading={simulating}
+      />
+    );
+  }
+
+  // ── Sending Transaction Trace View ────────────────────────────────────────
+  const shouldShowTransactionTrace = showTransactionTrace;
+  const proceedToTransactionDetails = () => {
+    setShowTransactionTrace(false);
+    navigate("/transaction-details", { state: { traces, signature, toAddress, amount } });
+  };
+  if (shouldShowTransactionTrace) {
+    return (
+      <TraceView
+        traces={traces}
+        success={signature ? true : false}
+        proceed={proceedToTransactionDetails}
+        loading={isSending}
+      />
+    );
   }
 
   // ── Sending spinner ────────────────────────────────────────────────────────
@@ -489,6 +553,28 @@ export default function ConfirmSendSplToken({
             </div>
           </Collapsible>
         )}
+
+        {/* Fallback for no logs, just errors */}
+        {parsedInstructions.length === 0 && simErr && (
+          <Collapsible
+            title={
+              <div className="flex items-center justify-between gap-2 w-full text-xs text-gray-500 hover:text-gray-300 transition-colors select-none">
+                <span>View error details</span>
+              </div>
+            }
+            className="w-full"
+            headerClassName="px-0 py-0"
+            contentClassName="mt-2"
+          >
+            <div className="mt-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 max-h-32 overflow-y-auto scrollbar-hide">
+              <pre className="text-xs font-mono text-red-400 leading-5 whitespace-pre-wrap wrap-break-word">
+                {String(
+                  typeof simErr === "string" ? simErr : JSON.stringify(simErr, null, 2)
+                ).replace(/\\n/g, "\n")}
+              </pre>
+            </div>
+          </Collapsible>
+        )}
       </div>
 
       {/* Sticky action buttons */}
@@ -506,7 +592,9 @@ export default function ConfirmSendSplToken({
           onClick={handleSend}
         >
           <CheckIcon size={13} weight="bold" />
-          Send
+          {
+            canProceedWithMissingAta ? "Create ATA & Send" : "Send"
+          }
         </button>
       </div>
     </>

@@ -28,6 +28,19 @@ import {
   getMnemonicRequestSchema
 } from "../../types/message/zod";
 import { ApprovalManager, type ApprovalManagerResponse } from "./ApprovalManager";
+import { RpcTracer } from "../../lib/rpc/tracer";
+
+console.log("Background script loaded");
+// Listen to RPC traces and forward them to the DevTools panel via runtime messaging
+// from rpc/tracer.ts
+console.log("Tracer instance form background script:", RpcTracer);
+RpcTracer.subscribe((trace) => {
+  chrome.runtime.sendMessage({
+    type: "RPC_TRACE_UPDATE",
+    payload: trace,
+  });
+});
+
 
 
 chrome.runtime.onMessage.addListener(

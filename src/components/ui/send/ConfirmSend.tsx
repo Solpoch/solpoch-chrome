@@ -1,7 +1,6 @@
 import {
   ArrowUpIcon,
   CheckIcon,
-  CheckCircleIcon,
   CpuIcon,
   CurrencyDollarIcon,
   GlobeIcon,
@@ -20,7 +19,6 @@ import {
   TransactionDebuggerEngine,
   type ParsedInstructionNode,
 } from "../../../lib/utils/solana/transactionDebugger";
-import SimulatingOverlay from "../popup/signAndSendTransaction/SimulatingOverlay";
 import StatusBadge from "../popup/signAndSendTransaction/StatusBadge";
 import SectionCard from "../popup/signAndSendTransaction/SectionCard";
 import Row from "../popup/signAndSendTransaction/Row";
@@ -31,8 +29,110 @@ import AiCrad from "../layout/AiCrad";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { API_ROUTES } from "../../../lib/http/api";
-import { RpcService } from "../../../lib/rpc";
+import { RpcServiceContent } from "../../../lib/rpc/content";
 import Collapsible from "../layout/Collapsible";
+import type { RpcSpan } from "../../../lib/rpc/tracer";
+import TraceView from "../traceView/TraceView";
+
+// const trace: RpcSpan[] = [
+//   {
+//     "id": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
+//     "method": "SIMULATION_FLOW",
+//     "attributes": [
+//       "HJwcQgAuADbCHMVL2fJHyUa7EiXgpryYEPyEkPzjJhTA",
+//       100000
+//     ],
+//     "startTime": 17207.899999999907,
+//     "status": "success",
+//     "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
+//     "events": [
+//       {
+//         "time": 17208.09999999986,
+//         "message": "Building transaction"
+//       },
+//       {
+//         "time": 17209.09999999986,
+//         "message": "Fetching blockhash"
+//       },
+//       {
+//         "time": 17296.5,
+//         "message": "Signing transaction"
+//       },
+//       {
+//         "time": 17369.299999999814,
+//         "message": "Simulating transaction"
+//       }
+//     ],
+//     "endTime": 17451,
+//     "result": {
+//       "err": null,
+//       "logs": [
+//         "Program 11111111111111111111111111111111 invoke [1]",
+//         "Program 11111111111111111111111111111111 success"
+//       ]
+//     }
+//   },
+//   {
+//     "id": "2fc24e54-1003-46b1-97ee-6905147ea66c",
+//     "method": "getLatestBlockhash",
+//     "attributes": {},
+//     "startTime": 17209.399999999907,
+//     "status": "success",
+//     "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
+//     "parentId": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
+//     "endTime": 17296.199999999953,
+//     "result": {
+//       "blockhash": "DKY7LAUerJKKS7QcgFcrN5h6m55HqibckM9AZvcJZua4",
+//       "lastValidBlockHeight": 447051729
+//     }
+//   },
+//   {
+//     "id": "8dd1bcce-9826-40b6-bf5e-70975ba7438c",
+//     "method": "simulateTransaction",
+//     "attributes": {},
+//     "startTime": 17369.699999999953,
+//     "status": "success",
+//     "traceId": "609dbc12-a92c-42a1-874b-244d8cecae36",
+//     "parentId": "961d1155-7ae3-4ef1-80da-464c4dfccdd0",
+//     "endTime": 17450.5,
+//     "result": {
+//       "context": {
+//         "apiVersion": "4.0.0-rc.0",
+//         "slot": 459185324
+//       },
+//       "value": {
+//         "accounts": null,
+//         "err": null,
+//         "fee": 5000,
+//         "innerInstructions": null,
+//         "loadedAccountsDataSize": 206,
+//         "loadedAddresses": {
+//           "readonly": [],
+//           "writable": []
+//         },
+//         "logs": [
+//           "Program 11111111111111111111111111111111 invoke [1]",
+//           "Program 11111111111111111111111111111111 success"
+//         ],
+//         "postBalances": [
+//           99790000,
+//           1090880,
+//           1
+//         ],
+//         "postTokenBalances": [],
+//         "preBalances": [
+//           99895000,
+//           990880,
+//           1
+//         ],
+//         "preTokenBalances": [],
+//         "replacementBlockhash": null,
+//         "returnData": null,
+//         "unitsConsumed": 150
+//       }
+//     }
+//   }
+// ]
 
 export default function ConfirmSend({
   amount,
@@ -49,10 +149,15 @@ export default function ConfirmSend({
   const [canSend, setCanSend] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [signature, setSignature] = useState<string | null>(null);
+  const [showTransactionTrace, setShowTransactionTrace] = useState(false);
   const account = useAccountStore((state) => state.account);
   const simErr = simulationResult?.err ?? null;
   const unitsConsumed = simulationResult?.unitsConsumed;
   const estimatedFee = lamportsToSol(5000);
+  const [traces, setTraces] = useState<RpcSpan[]>([]);
+  const [viewSimulationDetails, setViewSimulationDetails] = useState(false);
+
+  const clearTraces = () => setTraces([]);
 
   const parsedInstructions = useMemo(
     () => TransactionDebuggerEngine.parseInstructions(simulationResult?.logs ?? []),
@@ -143,6 +248,30 @@ export default function ConfirmSend({
     }
   }, [toAddress, amount, confimedWithPassword]);
 
+  useEffect(() => {
+    const handler = (message: any) => {
+      if (message.type !== "RPC_TRACE_UPDATE") return;
+
+      setTraces((prev) => {
+        const idx = prev.findIndex(t => t.id === message.payload.id);
+
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = message.payload;
+          return next;
+        }
+
+        return [...prev, message.payload];
+      });
+    };
+
+    chrome.runtime.onMessage.addListener(handler);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(handler);
+    };
+  }, []);
+
   const handleSend = async () => {
     setCanSend(false);
     setIsSending(true);
@@ -151,6 +280,7 @@ export default function ConfirmSend({
       setIsSending(false);
       return;
     }
+    setShowTransactionTrace(true);
     try {
       const response = await sendMessage("SIGN_AND_SEND_TRANSACTION", {
         to: toAddress,
@@ -171,7 +301,7 @@ export default function ConfirmSend({
     queryKey: ["aiExplanation", simErr],
     queryFn: async () => {
       if (!simErr) return null;
-      const senderBalance = account?.pubkey ? await RpcService.getBalance(account?.pubkey) : "Unknown";
+      const senderBalance = account?.pubkey ? await RpcServiceContent.getBalance(account?.pubkey) : "Unknown";
       const context = `
         Simulation error: ${JSON.stringify(simErr)},
         Senders Balance: ${senderBalance},
@@ -206,72 +336,24 @@ export default function ConfirmSend({
     );
   }
 
-  // ── Simulating overlay ─────────────────────────────────────────────────────
-  if (simulating) {
-    return <SimulatingOverlay />;
+  // ── Simulating Transaction Trace View ─────────────────────────────────────────────────────
+  if (simulating || !viewSimulationDetails) {
+    const proceedFromSimulationTrace = () => {
+      setViewSimulationDetails(true);
+      clearTraces();
+    }
+    return <TraceView traces={traces} success={simErr ? false : true} proceed={proceedFromSimulationTrace} loading={simulating} />
   }
 
-  // ── Sending spinner ────────────────────────────────────────────────────────
-  if (isSending) {
-    return (
-      <div className="flex flex-col justify-center items-center h-full gap-4">
-        <div className="relative">
-          <div className="border-t-2 border-primary rounded-full animate-spin">
-            <div className="h-16 w-16" />
-          </div>
-          <img src="/logo.png" alt="logo" className="h-8 w-8 absolute top-4 left-4" />
-        </div>
-        <p className="text-xs text-gray-400">Sending transaction…</p>
-      </div>
-    );
+  // ── Sending Transaction Trace View────────────────────────────────────────────────────────
+  const shouldShowTransactionTrace = showTransactionTrace;
+  const proceedToTransactionDetails = () => {
+    setShowTransactionTrace(false);
+    navigate("/transaction-details", { state: { traces, signature, toAddress, amount } });
   }
-
-  // ── Success ────────────────────────────────────────────────────────────────
-  if (signature) {
+  if (shouldShowTransactionTrace) {
     return (
-      <div className="flex flex-col justify-center items-center h-full gap-4">
-        <div className="flex bg-green-500/10 rounded-full p-4">
-          <CheckCircleIcon size={40} weight="fill" className="text-green-500" />
-        </div>
-        <div className="text-center flex flex-col gap-1">
-          <p className="text-xs font-semibold text-gray-200">Transaction sent successfully!</p>
-          <a
-            href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-primary"
-          >
-            View on Solana Explorer
-          </a>
-        </div>
-        <SectionCard>
-          <Row
-            label="To"
-            value={shortAddress(toAddress)}
-            icon={<ArrowUpIcon size={13} />}
-            mono
-            accent="neutral"
-          />
-          <Row
-            label="Amount"
-            value={`${amount} SOL`}
-            icon={<CurrencyDollarIcon size={13} />}
-            accent="red"
-          />
-          <Row
-            label="Network"
-            value="Devnet"
-            icon={<GlobeIcon size={13} />}
-            accent="neutral"
-          />
-        </SectionCard>
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white/7 hover:bg-white/11 transition-colors rounded-full text-white font-medium w-full text-xs mt-2"
-        >
-          Done
-        </button>
-      </div>
+      <TraceView traces={traces} success={signature ? true : false} proceed={proceedToTransactionDetails} loading={isSending} />
     );
   }
 
@@ -439,6 +521,27 @@ export default function ConfirmSend({
             </div>
           </Collapsible>
         )}
+
+        {/* Fallback for no logs, just errors */}
+        {parsedInstructions.length === 0 && simErr && (
+          <Collapsible
+            title={
+              <div className="flex items-center justify-between gap-2 w-full text-xs text-gray-500 hover:text-gray-300 transition-colors select-none">
+                <span>View error details</span>
+              </div>
+            }
+            className="w-full"
+            headerClassName="px-0 py-0"
+            contentClassName="mt-2"
+          >
+            <div className="mt-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 max-h-32 overflow-y-auto scrollbar-hide">
+              <p className="text-xs font-mono text-red-400 leading-5 break-all">
+                {JSON.stringify(simErr)}
+              </p>
+            </div>
+          </Collapsible>
+        )}
+
       </div>
 
       {/* Sticky action buttons */}
