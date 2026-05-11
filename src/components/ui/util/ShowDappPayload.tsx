@@ -6,6 +6,11 @@ import type { SolanaSignInInput } from "@solana/wallet-standard-features";
 import { CodeIcon } from "@phosphor-icons/react";
 import JsonView from '@uiw/react-json-view';
 import { vscodeTheme } from '@uiw/react-json-view/vscode';
+import { useQuery } from "@tanstack/react-query";
+import { RpcServiceContent } from "../../../lib/rpc/content";
+import { API_ROUTES } from "../../../lib/http/api";
+import axios from "axios";
+import AiCrad from "../layout/AiCrad";
 
 function deserializeTx(bytes: Uint8Array) {
   try {
@@ -39,14 +44,40 @@ export default function ShowDappPayload({
   parameters,
   toggleShowDappPayload,
   showDappPayload,
+  origin,
 }: {
   method: Method;
   parameters: DappPayloadMap[Method];
   toggleShowDappPayload: () => void;
   showDappPayload: boolean;
+  origin: string;
 }) {
   const account = useAccountStore((state) => state.account);
 
+  const { data: aiExplanation, isLoading: isAiExplanationLoading } = useQuery({
+    queryKey: ["dAppAnalysis", method, parameters],
+    queryFn: async () => {
+      if (!parameters) return null;
+      const senderBalance = account?.pubkey ? await RpcServiceContent.getBalance(account.pubkey) : "Unknown";
+      const context = `
+        Sender Wallet: ${account?.pubkey ?? "Unknown"},
+        Sender Balance: ${senderBalance},
+        origin: ${origin},
+        Payload Recievied From Dapp: ${JSON.stringify(parameters)},
+        Wallet Standard Method Called: ${method}
+      `;
+      const res = await axios.post(API_ROUTES.ai.dAppAnalysis, {
+        payload: context,
+      });
+      return res.data;
+    },
+    enabled: !!parameters,
+    staleTime: 0,
+    gcTime: 0,
+    meta: {
+      persist: false,
+    },
+  });
 
   return (
     <SafeArea>
@@ -77,6 +108,10 @@ export default function ShowDappPayload({
             </div>
 
             <div className="mt-4">
+              <AiCrad loading={isAiExplanationLoading} content={aiExplanation} />
+            </div>
+
+            <div className="mt-2">
               <JsonView value={useParsedDappPayload(method, parameters).parsed} style={vscodeTheme} className="rounded-md text-xs p-4" />
             </div>
 

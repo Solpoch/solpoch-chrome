@@ -93,6 +93,7 @@ export default function SignInApproval() {
         parameters={payloadFromDapp.input ?? {}}
         toggleShowDappPayload={toggleShowDappPayload}
         showDappPayload={showDappPayload}
+        origin={origin}
       />
     );
   }

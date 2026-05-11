@@ -296,6 +296,7 @@ export default function SignAndSendTransactionApproval() {
         }}
           toggleShowDappPayload={toggleShowDappPayload}
           showDappPayload={showDappPayload}
+          origin={origin}
         />
       )
     }

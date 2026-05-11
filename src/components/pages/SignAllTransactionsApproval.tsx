@@ -305,6 +305,7 @@ export default function SignAllTransactionsApproval() {
         }}
         toggleShowDappPayload={toggleShowDappPayload}
         showDappPayload={showDappPayload}
+        origin={origin}
       />
     );
   }

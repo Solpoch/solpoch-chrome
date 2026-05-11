@@ -94,6 +94,7 @@ export default function SignMessage() {
         }}
         toggleShowDappPayload={toggleShowDappPayload}
         showDappPayload={showDappPayload}
+        origin={origin}
       />
     );
   }
